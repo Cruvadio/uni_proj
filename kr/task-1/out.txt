@@ -1,0 +1,6 @@
+/* C++ comment1 1*/
+/* C++ comment2 2*/
+something else
+/* C++ 4*/
+smthing
+smthing /* C++ 6*/

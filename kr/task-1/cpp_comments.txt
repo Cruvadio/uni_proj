@@ -1,0 +1,6 @@
+// C++ comment1
+// C++ comment2
+something else
+// C++
+smthing
+smthing // C++
