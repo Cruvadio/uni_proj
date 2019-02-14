@@ -19,7 +19,7 @@ list *remove_space (list* lst)
         
         for (; i < strlen(lst->str); i++)
         {
-            if ((lst->str[i] == ' ' || lst->str[i] == '\r' || lst->str[i] == '\t') && i != 0)
+            if ((lst->str[i] == ' ') && i != 0)
                 i++;
             while (lst->str[i] == ' ' || lst->str[i] == '\r' || lst->str[i] == '\t')
             {
