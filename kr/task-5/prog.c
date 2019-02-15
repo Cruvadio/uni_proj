@@ -39,25 +39,22 @@ int main (int argc, char *argv[])
 		fprintf(stderr, "There is no int of 32 bytes.\n");
 		return 1;
 	}
-	for (i = 0; i <mtr_size;i++)
+	for (i = 0; i <mtr_size - 1;i++)
 	{
-		if (i != 0)
+        /*if (i == 1)
         {
-            if (i == 1)
+            if (lseek(fd,(mtr_size - 1 )*sizeof(double), SEEK_CUR)== -1L)
             {
-                if (lseek(fd,(mtr_size - 1 )*sizeof(double), SEEK_CUR)== -1L)
-                {
-                    fprintf(stderr, "Seek error\n");
-                    return 1;
-                }
+                fprintf(stderr, "Seek error\n");
+                return 1;
             }
-            else
+        }
+        else*/
+        {
+            if (lseek(fd,(mtr_size)*sizeof(double), SEEK_CUR)== -1L)
             {
-                if (lseek(fd,(mtr_size)*sizeof(double), SEEK_CUR)== -1L)
-                {
-                    fprintf(stderr, "Seek error\n");
-                    return 1;
-                }
+                fprintf(stderr, "Seek error\n");
+                return 1;
             }
         }
 		rd = read(fd, &num, sizeof(double));
