@@ -44,7 +44,7 @@ void init_file()
 {
     int fd;
     uint32_t i = 0;
-    int num = 5;
+    int num = 10;
 
     fd = open(FILE_NAME,O_CREAT | O_WRONLY | O_TRUNC, 0660);
 
@@ -61,7 +61,7 @@ void init_file()
 int main (int argc, char *argv[])
 {
     int n, m;
-    int k = 0, j = 0;
+    int num_all = 0, j = 0;
     int i = 0;
     int fd;
     uint32_t* nums = NULL;
@@ -81,7 +81,7 @@ int main (int argc, char *argv[])
      * CHECK NULL
      */
     
-    fd = open(FILE_NAME, O_APPEND | O_RDWR);
+    fd = open(FILE_NAME, O_RDWR);
 
     lseek(fd, 0, SEEK_SET);
 
@@ -95,8 +95,17 @@ int main (int argc, char *argv[])
                 is_end = 1;
                 break;
             }
-            k++;
+            num_all++;
+
+            if (check_binary(nums[i], n))
+            {
+                lseek(fd, j * sizeof(uint32_t), SEEK_SET);
+                j++;
+                write(fd, nums + i, sizeof(uint32_t));
+                lseek(fd, num_all * sizeof(uint32_t), SEEK_SET);
+            }
         }
+        /*
         lseek(fd, j * sizeof(uint32_t), SEEK_SET);
         for (i = 0; i < m; i++)
         {
@@ -106,10 +115,18 @@ int main (int argc, char *argv[])
                 write(fd, nums + i, sizeof(uint32_t));
             }
         }
+        */
         if (is_end)
             break;
-        lseek(fd,k * sizeof(uint32_t), SEEK_SET);
+        /*
+        lseek(fd,num_all * sizeof(uint32_t), SEEK_SET);
+        */
     }
+
+    ftruncate(fd, j*sizeof(uint32_t));
+
+    free(nums);
+    close(fd);
 
     return 0;
 }
