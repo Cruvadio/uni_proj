@@ -1,17 +1,31 @@
 #include "rational.h"
-#include <stdio.h>
-
+#include "exception.h"
+#include <cstdio>
+#include <climits>
 
 int main()
 {
-    Rational_number rat, rat2(1, 2);
-    Rational_number rat3 = 6;
-    rat+= 3;
+    try
+    {
+        Rational_number rat = Rational_number(USHRT_MAX);
 
-    rat++;
-
-    rat+= rat2;
-
-    rat = 6 - rat2;
-
+        printf("%s\n", rat.to_string());
+    }
+    catch(Zerodivide &z)
+    {
+        z.debug_print();
+    }
+    catch(Overflow &o)
+    {
+        o.debug_print();
+    }
+    catch(Matherr &m)
+    {
+        m.debug_print();
+    }
+    catch(...)
+    {
+        throw;
+    }
+    return 0;
 }
