@@ -1,6 +1,10 @@
 #include "rational.h"
-#include <string.h>
-#include <stdlib.h>
+#include "exception.h"
+#include <cstring>
+#include <stdint.h>
+#include <cstdlib>
+#include <climits>
+#include <cstdio>
 
 
 Rational_number::Rational_number (const int num)
@@ -17,7 +21,6 @@ Rational_number::Rational_number (const int num)
         numerator = num;
         denominator = 1;
     }
-    string = NULL;
 }
 
 Rational_number::Rational_number (const short num)
@@ -34,7 +37,6 @@ Rational_number::Rational_number (const short num)
         numerator = num;
         denominator = 1;
     }
-    string = NULL;
 }
 
 Rational_number::Rational_number (const long num)
@@ -42,26 +44,23 @@ Rational_number::Rational_number (const long num)
     if (num < 0) 
     {
         sign = -1;
+        if (-num > UINT32_MAX) throw Overflow();
         numerator = -num;
         denominator = 1;
     }
     else
     {
         sign = 1;
+        if (num > UINT32_MAX) throw Overflow();
         numerator = num;
         denominator = 1;
     }
-    string = NULL;
 }
 
 
 Rational_number::Rational_number (const char* ratio)
 {
     int i = 0;
-
-    string = new char[strlen(ratio) + 1];
-
-    strcpy(string, ratio);
 
     if (ratio[0] == '-')
     {
@@ -96,7 +95,8 @@ Rational_number::Rational_number (const char* ratio)
             }
             numerator = atoi(num);
             denominator = atoi(denom);
-            
+           
+            if (denominator == 0) throw Zerodivide();
             delete[] num;
             delete[] denom;
             return;
@@ -117,20 +117,15 @@ Rational_number::Rational_number (const char* num,const char* denom)
     numerator = atoi(num);
     denominator = atoi(denom);
     sign = 1;
-    string = new char[strlen(num) + strlen(denom) + 2];
-    strcpy(string, num);
-    strcat(string, "/");
-    strcat(string, denom);
-   // if (!denominator) throw ERROR;
+    if (!denominator) throw Zerodivide();
 }
 
 Rational_number::Rational_number (const Rational_number & ratio)
 {
     numerator = ratio.numerator;
     denominator = ratio.denominator;
+    if (!denominator) throw Zerodivide();
     sign = ratio.sign;
-    string = new char[strlen(ratio.string) + 1];
-    strcpy(string, ratio);
 }
 
 Rational_number& Rational_number::operator=(const Rational_number& rv)
@@ -138,15 +133,16 @@ Rational_number& Rational_number::operator=(const Rational_number& rv)
     numerator = rv.numerator;
     denominator = rv.denominator;
     sign = rv.sign;
-
+    
     return *this;
 }
 
 const Rational_number operator+ (const Rational_number lv, const Rational_number rv)
 {
     Rational_number sum;
-    int num;
+    int64_t num;
     num = lv.sign * lv.numerator * rv.denominator + rv.sign * rv.numerator * lv.denominator;
+    if ((num < 0)? -num : num > (int64_t)UINT32_MAX) throw Overflow("+", lv, rv);
     if (num < 0) 
     {
         sum.sign = -1;
@@ -157,6 +153,7 @@ const Rational_number operator+ (const Rational_number lv, const Rational_number
         sum.sign = 1;
         sum.numerator = num;
     }
+    if (lv.denominator * rv.denominator > UINT32_MAX) throw Overflow("+", lv, rv);
     sum.denominator = lv.denominator * rv.denominator;
     return sum;
 }
@@ -164,8 +161,9 @@ const Rational_number operator+ (const Rational_number lv, const Rational_number
 const Rational_number operator- (const Rational_number lv, const Rational_number rv)
 {
     Rational_number sub;
-    int num;
+    int64_t num;
     num = lv.sign * lv.numerator * rv.denominator - rv.sign * rv.numerator * lv.denominator;
+    if ((num < 0)? -num : num > UINT32_MAX) throw Overflow("-", lv, rv);
     if (num < 0) 
     {
         sub.sign = -1;
@@ -176,6 +174,7 @@ const Rational_number operator- (const Rational_number lv, const Rational_number
         sub.sign = 1;
         sub.numerator = num;
     }
+    if (lv.denominator * rv.denominator > UINT32_MAX) throw Overflow("-", lv, rv);
     sub.denominator = lv.denominator * rv.denominator;
     return sub;
 }
@@ -184,6 +183,8 @@ const Rational_number operator* (const Rational_number lv, const Rational_number
 {
     Rational_number mul;
     
+    if ((uint64_t)lv.numerator * (uint64_t)rv.numerator > (uint64_t)UINT32_MAX || lv.denominator * rv.denominator > UINT32_MAX)
+        throw Overflow("*", lv, rv);
     mul.numerator = lv.numerator * rv.numerator;
     mul.sign = lv.sign * rv.sign;
     mul.denominator = lv.denominator * rv.denominator;
@@ -194,7 +195,9 @@ const Rational_number operator* (const Rational_number lv, const Rational_number
 const Rational_number operator/ (const Rational_number lv, const Rational_number rv)
 {
     Rational_number div;
-    
+    if (!rv.numerator) throw Zerodivide("/", lv, rv);
+    if (lv.numerator * rv.denominator > UINT32_MAX || lv.denominator * rv.numerator > UINT32_MAX)
+        throw Overflow("/", lv, rv);
     div.numerator = lv.numerator * rv.denominator;
     div.sign = lv.sign * rv.sign;
     div.denominator = lv.denominator * rv.numerator;
@@ -316,12 +319,73 @@ Rational_number Rational_number::get_fractional_part()
     return fractional_part;
 }
 
-char* Rational_number::to_string ()
+char* Rational_number::to_string () const
 {
+    int num = numerator,denom = denominator,i, j;
+    for (i = 0; num != 0; i++)
+    {
+        num /= 10;
+    }
 
+    for (j = 0; denom != 0; j++)
+    {
+        denom /= 10;
+    }
+
+    char *str = new char[i + ((denominator != 1)? j + 1 : 0) + ((sign < 0) ? 3 : 2)];
+    
+    if (denominator != 1)
+    {
+        if (sign > 0)
+            sprintf(str, "%d/%d", (unsigned int)numerator, (unsigned int)denominator);
+        else
+            sprintf(str, "-%d/%d", (unsigned int)numerator, (unsigned int) denominator);
+    }
+    else
+    {
+        if (sign < 0) 
+            sprintf(str, "-%d", (unsigned int)numerator);
+        else
+            sprintf(str, "%d", (unsigned int) numerator);
+    }
+    return str;
+}
+
+void Rational_number::make_canonical ()
+{
+    int c = gcd(numerator, denominator);
+    numerator /= c;
+    denominator /= c;
+}
+Rational_number::operator int()
+{
+    Rational_number rat = get_number_part();
+
+    if (rat.numerator * sign > INT_MAX ||(int64_t) sign * rat.numerator < INT_MIN) 
+        throw Overflow("(int)", *this);
+    return rat.numerator * sign;
+}
+
+Rational_number::operator short()
+{
+    Rational_number rat = get_number_part();
+    if (rat.numerator * sign > SHRT_MAX || (int64_t)rat.numerator * sign < SHRT_MIN) 
+        throw Overflow("(short)", *this);
+    return rat.numerator * sign;
+}
+
+Rational_number::operator long()
+{
+    Rational_number rat = get_number_part();
+    if ((int64_t)rat.numerator * sign > LONG_MAX || (int64_t)rat.numerator * sign < LONG_MIN)
+        throw Overflow("(long)", *this);
+    return rat.numerator * sign;
+}
+Rational_number::operator double()
+{
+    return (double) numerator/ (double) denominator;
 }
 
 Rational_number::~Rational_number()
 {
-    if (string != NULL) delete[] string;
 }

@@ -5,8 +5,7 @@
 
 #include <stdint.h>
 
-
-
+class Rational_number;
 
 class Rational_number
 {
@@ -14,7 +13,6 @@ class Rational_number
     uint32_t denominator;
     int sign;
 
-    char* string;
 
     unsigned int gcd (unsigned int a, unsigned int b)
     {
@@ -22,7 +20,7 @@ class Rational_number
     }
 
     public:
-        Rational_number() : numerator(0), denominator(1) , sign(1), string(NULL) {}
+        Rational_number() : numerator(0), denominator(1) , sign(1) {}
         Rational_number(const Rational_number& rat);
         Rational_number(const char* ratio);
         Rational_number(const char* num, const char* denom);
@@ -31,6 +29,10 @@ class Rational_number
         Rational_number(const int num);
         Rational_number(const short num);
         Rational_number(const long num);
+
+        Rational_number(const unsigned int num) : numerator(num), denominator(1), sign(1) {}
+        Rational_number(const unsigned short num) : numerator(num), denominator(1), sign(1) {}
+        Rational_number(const unsigned long num) : numerator(num), denominator(1), sign(1) {}
 
         Rational_number& operator=(const Rational_number& rv);
 
@@ -62,10 +64,10 @@ class Rational_number
         Rational_number& operator--();
         Rational_number operator--(int);
 
-        operator short();
-        operator int();
-        operator long int();
-        operator double();
+        explicit operator short();
+        explicit operator int();
+        explicit operator long int();
+        explicit operator double();
 
         Rational_number get_number_part();
         Rational_number get_fractional_part();
@@ -74,7 +76,7 @@ class Rational_number
         void floor();
         void make_canonical();
 
-        char* to_string();
+        char* to_string() const;
 
         ~Rational_number();
     
