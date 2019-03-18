@@ -19,6 +19,8 @@ class Rational_number
         return (b == 0) ? a : gcd(b, a%b);
     }
 
+    bool is_number (const char* num);
+
     public:
         Rational_number() : numerator(0), denominator(1) , sign(1) {}
         Rational_number(const Rational_number& rat);
@@ -40,6 +42,9 @@ class Rational_number
         friend const Rational_number operator-(const Rational_number lv, const Rational_number rv); 
         friend const Rational_number operator*(const Rational_number lv, const Rational_number rv); 
         friend const Rational_number operator/(const Rational_number lv, const Rational_number rv); 
+
+        Rational_number& operator+ ();
+        Rational_number operator- ();
 
         friend bool operator>(const Rational_number& lv, const Rational_number& rv); 
         friend bool operator<(const Rational_number& lv, const Rational_number& rv); 
