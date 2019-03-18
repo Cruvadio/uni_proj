@@ -1,5 +1,4 @@
-#include "rational.h"
-#include "exception.h"
+#include "matrix.h"
 #include <cstdio>
 #include <climits>
 
@@ -7,17 +6,14 @@ int main()
 {
     try
     {
-        Rational_number rat = Rational_number(USHRT_MAX);
-
+        Rational_number rat("135", "573");
+        
+        rat = rat / Rational_number();
         printf("%s\n", rat.to_string());
     }
-    catch(Zerodivide &z)
+    catch(NotARational &n)
     {
-        z.debug_print();
-    }
-    catch(Overflow &o)
-    {
-        o.debug_print();
+        n.debug_print();
     }
     catch(Matherr &m)
     {
