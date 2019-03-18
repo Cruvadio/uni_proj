@@ -46,7 +46,9 @@ enum States
 class Vector
 {
     Node<Rational_number>* first; 
-    
+    unsigned int size;
+    int references;
+
     public:
         class Iterator
         {
@@ -70,11 +72,14 @@ class Vector
         };
         friend class Iterator;
 
-        Vector(States state = Zeros);
+        Vector(unsigned int size, States state = Zeros);
+        Vector(const Vector& vec);
+        Vector(const char* file_name);
         ~Vector();
 
         Iterator operator[](unsigned int index)
         {
+            //if (index > size || index < 0??) throw Exception();
             return Iterator(*this, index);
         }
 };

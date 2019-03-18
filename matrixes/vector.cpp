@@ -56,10 +56,9 @@ Vector::Iterator::operator Rational_number()
 Rational_number& Vector::Iterator::provide()
 {
     Node<Rational_number>* head = master.first;
+    if (find(master.first) == 0) head = Node<Rational_number>::insert(index, master.first, 0);
     while(true)
     {
-        if (!head)
-            head = Node<Rational_number>::insert(index, master.first, 0);
         if (index == head->return_key()) return head->value;
         else if(index < head->return_key()) head = head->return_left();
         else head = head->return_right();
