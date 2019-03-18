@@ -8,6 +8,10 @@
 
 template <class T> class Node
 {
+    unsigned int key;
+
+    Node<T>* left;
+    Node<T>* right;
     static unsigned short return_height(Node<T>* p);
     static int balance_factor(Node<T>* p);
 
@@ -19,15 +23,16 @@ template <class T> class Node
     static Node<T>* remove_min (Node<T>* p);
 
     public:
-        unsigned int key;
         T value;
-        Node<T>* left;
-        Node<T>* right;
         Node(const unsigned int& k,const T& val = 0) 
         : value(val), key(k) , left(0) , right(0) {}
 
         static Node<T>* remove (unsigned int k,Node<T>* p);
         static Node<T>* insert (unsigned int k, Node<T>* p, const T& value);
+
+        unsigned int return_key() {   return key; }
+        Node<T>* return_left() {    return left; }
+        Node<T>* return_right(){    return right; }
 
 };
 

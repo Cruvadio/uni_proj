@@ -4,7 +4,7 @@
 
 Vector::~Vector()
 {
-    while(first) first = Node<Rational_number>::remove(first->key, first);
+    while(first) first = Node<Rational_number>::remove(first->return_key(), first);
 }
 
 Rational_number Vector::Iterator::operator= (const Rational_number& num)
@@ -43,9 +43,9 @@ Rational_number Vector::Iterator::operator++ (int)
 Rational_number Vector::Iterator::find(Node<Rational_number>* p)
 {
     if (!p) return 0;
-    if (index == p->key) return p->value;
-    if (index < p->key) return find(p->left);
-    return find(p->right);
+    if (index == p->return_key()) return p->value;
+    if (index < p->return_key()) return find(p->return_left());
+    return find(p->return_right());
 }
 
 Vector::Iterator::operator Rational_number()
@@ -60,9 +60,9 @@ Rational_number& Vector::Iterator::provide()
     {
         if (!head)
             head = Node<Rational_number>::insert(index, master.first, 0);
-        if (index == head->key) return head->value;
-        else if(index < head->key) head = head->left;
-        else head = head->right;
+        if (index == head->return_key()) return head->value;
+        else if(index < head->return_key()) head = head->return_left();
+        else head = head->return_right();
     }
 }
 
