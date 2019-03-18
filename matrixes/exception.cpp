@@ -8,10 +8,7 @@ void Matherr::debug_print()
     fprintf(stderr, "Catched exception of mathematical nature\n");
 }
 
-Matherr::~Matherr()
-{}
-
-Overflow::Overflow(const char* op, const Rational_number& lv, const Rational_number& rv)
+Matherr::Matherr(const char* op, const Rational_number& lv, const Rational_number& rv)
 {
     this->lv = lv;
     this->rv = rv;
@@ -22,17 +19,25 @@ Overflow::Overflow(const char* op, const Rational_number& lv, const Rational_num
     }
     else op = 0;
 }
-Overflow::Overflow(const Overflow &ov)
+
+Matherr::Matherr (const Matherr& m)
 {
-    lv = ov.lv;
-    rv = ov.rv;
-    if (ov.op)
+    lv = m.lv;
+    rv = m.rv;
+    if (m.op)
     {
         op = new char[strlen(op) + 1];
-        strcpy(op, ov.op);
+        strcpy(op, m.op);
     }
     else op = 0;
+
 }
+
+Matherr::~Matherr()
+{
+    if (op) delete[] op;
+}
+
 void Overflow::debug_print()
 {
     if (op == 0)
@@ -54,35 +59,6 @@ void Overflow::debug_print()
     delete[] str_rv;
 }
 
-Overflow::~Overflow()
-{
-    if (op) delete[] op;
-}
-
-Zerodivide::Zerodivide(const char* op, const Rational_number& lv, const Rational_number& rv)
-{
-    this->lv = lv;
-    this->rv = rv;
-    if (op)
-    {
-        this->op = new char[strlen(op) + 1];
-        strcpy(this->op, op);
-    }
-    else op = 0;
-}
-
-Zerodivide::Zerodivide(const Zerodivide &zr)
-{
-    lv = zr.lv;
-    rv = zr.rv;
-    if (zr.op)
-    {
-        op = new char[strlen(op) + 1];
-        strcpy(op, zr.op);
-    }
-    else op = 0;
-}
-
 void Zerodivide::debug_print()
 {
     if (!op)
@@ -93,13 +69,36 @@ void Zerodivide::debug_print()
     char *str_lv = lv.to_string();
     char *str_rv = rv.to_string();
 
-    fprintf(stderr, "Dividing zero in operation in operation: (%s %s %s)\n", str_lv, op , str_rv);
+    fprintf(stderr, "Dividing zero in operation: (%s %s %s)\n", str_lv, op , str_rv);
     delete[] str_lv;
     delete[] str_rv;
 }
 
-Zerodivide::~Zerodivide()
+WrongLexeme::WrongLexeme(const char* lexeme)
 {
-    if (op) delete[] op;
+    if (!lexeme) this->lexeme = 0;
+    else
+    {
+        this->lexeme = new char[strlen(lexeme) + 1];
+        strcpy(this->lexeme, lexeme);
+    }
 }
 
+void WrongLexeme::debug_print()
+{
+    fprintf(stderr, "Wrong lexeme '%s'!\n", lexeme);
+}
+
+WrongLexeme::~WrongLexeme()
+{
+    if (lexeme) delete[] lexeme;
+}
+
+void NotARational::debug_print()
+{
+    fprintf(stderr, "'%s' is not a rational number!\n", lexeme);
+}
+
+Exception::~Exception()
+{
+}
