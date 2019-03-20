@@ -325,27 +325,19 @@ Rational_number Rational_number::operator--(int)
     return old;
 }
 
-void Rational_number::floor ()
+Rational_number Rational_number::floor ()
 {
-    numerator /= denominator;
-    denominator = 1;
+    return get_number_part();
 }
 
-void Rational_number::round()
-{
-    uint32_t number_part = numerator / denominator;
-    numerator -= number_part * denominator;
-    
+Rational_number Rational_number::round()
+{   
     double fractional_part = (double) numerator / (double) denominator;
     if ( fractional_part >= 0.5)
     {
-        numerator = number_part + 1;
+        return get_number_part() + 1;
     }
-    else
-    {
-        numerator = number_part;
-    }
-    denominator = 1;
+    return get_number_part();
 }
 
 Rational_number Rational_number::get_number_part()

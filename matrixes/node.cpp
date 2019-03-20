@@ -77,6 +77,14 @@ template <class T> Node<T>* Node<T>::remove_min (Node<T>* p)
     return balance_tree(p);
 }
 
+template <class T> Node<T>* Node<T>::copy(Node<T>* p, Node<T>* q)
+{
+    p = insert(p, q->key, q->value);
+    p = copy(p, q->left);
+    p = copy(p, q->right);
+    return p;
+}
+
 template <class T> Node<T>* Node<T>::remove(unsigned int k, Node<T>* p)
 {
     if (!p) return 0;

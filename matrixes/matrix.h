@@ -5,5 +5,6 @@
 
 #include "rational.h"
 #include "exception.h"
+#include "vector.h"
 
 #endif

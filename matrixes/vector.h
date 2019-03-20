@@ -3,8 +3,19 @@
 #ifndef VECTOR_H_
 #define VECTOR_H_
 
+#include <cstdio>
 #include "rational.h"
 #include "exception.h"
+
+
+class MathObject
+{
+    protected:
+        char* read_str(FILE* file, int& err);
+    public:
+        virtual char* to_string() = 0;
+        virtual void write(char* file_name) = 0;
+};
 
 template <class T> class Node
 {
@@ -26,7 +37,8 @@ template <class T> class Node
         T value;
         Node(const unsigned int& k,const T& val = 0) 
         : value(val), key(k) , left(0) , right(0) {}
-
+        
+        static Node<T>* copy (Node<T>* p, Node<T>* q);
         static Node<T>* remove (unsigned int k,Node<T>* p);
         static Node<T>* insert (unsigned int k, Node<T>* p, const T& value);
 
@@ -43,9 +55,9 @@ enum States
     Elementary,
 };
 
-class Vector
+class Vector : public MathObject
 {
-    Node<Rational_number>* first; 
+    Node<Rational_number>* node; 
     unsigned int size;
     int references;
 
@@ -64,14 +76,22 @@ class Vector
             public:
                 operator Rational_number();
                 Rational_number operator=(const Rational_number &rat);
+                
                 Rational_number operator+=(const Rational_number &rat);
+                Rational_number operator-=(const Rational_number &rat);
+                Rational_number operator*=(const Rational_number &rat);
+                Rational_number operator/=(const Rational_number &rat);
+
                 Rational_number operator++();
                 Rational_number operator++(int);
+                Rational_number operator--();
+                Rational_number operator--(int);
+
 
 
         };
         friend class Iterator;
-
+    
         Vector(unsigned int size, States state = Zeros);
         Vector(const Vector& vec);
         Vector(const char* file_name);
@@ -82,6 +102,8 @@ class Vector
             //if (index > size || index < 0??) throw Exception();
             return Iterator(*this, index);
         }
+
+        char* to_string();
 };
 
 #endif

@@ -77,8 +77,8 @@ class Rational_number
         Rational_number get_number_part();
         Rational_number get_fractional_part();
 
-        void round();
-        void floor();
+        Rational_number round();
+        Rational_number floor();
         void make_canonical();
 
         char* to_string() const;
