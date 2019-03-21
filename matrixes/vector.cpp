@@ -1,13 +1,18 @@
 #include "rational.h"
 #include "exception.h"
 #include "vector.h"
+#include "node.h"
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
 Vector::~Vector()
 {
-    while(node) node = Node<Rational_number>::remove(node->return_key(), node);
+    for(unsigned int i = 0; i < size; i++)
+    {
+        if ((*this)[i] != (Rational_number)0)
+            node = Node<Rational_number>::remove(i, node);
+    }
 }
 
 char* MathObject::read_str(FILE* file,int &err)
@@ -59,7 +64,7 @@ Rational_number Vector::Iterator::operator= (const Rational_number& num)
 {
     if (num == 0) remove();
     else
-        provide() = num;
+        master.node = Node<Rational_number>::insert(index, master.node, num);
     return num;
 }
 
@@ -161,9 +166,22 @@ Rational_number& Vector::Iterator::provide()
     }
 }
 
+Rational_number Vector::Accessor::find(Node<Rational_number>* p)
+{
+    if (!p) return 0;
+    if (index == p->return_key()) return p->value;
+    if (index < p->return_key()) return find(p->return_left());
+    return find(p->return_right());
+}
+
+Vector::Accessor::operator Rational_number()
+{
+    return find(master.node);
+}
+
 void Vector::Iterator::remove()
 {
-    Node<Rational_number>::remove(index, master.node);
+    master.node = Node<Rational_number>::remove(index, master.node);
 }
 
 Vector::Vector(unsigned int size, States state) : node(0)
@@ -176,7 +194,7 @@ Vector::Vector(unsigned int size, States state) : node(0)
         break;
     case Ones:
         for (unsigned int i = 0; i < size; i++)
-            (*this)[i]= 1;
+            (*this)(i)= 1;
         break;
     default:
         //throw Exception();
@@ -215,6 +233,117 @@ Vector::Vector(const char* file_name) : node(0)
     fclose(f);
 }
 
+
+void Vector::write_node(FILE* file, Node<Rational_number>* p)
+{
+    if (!p) return;
+
+    write_node(file, p->return_left());
+
+    char* str = p->value.to_string();
+    fprintf(file, "%u %s\n", p->return_key(), str);
+    delete[] str;
+
+    write_node(file, p->return_right());
+}
+
+void Vector::write(const char* file_name)
+{
+    FILE* f = fopen(file_name, "w");
+
+    //if (f == NULL) throw Exception();
+    fprintf(f, "vector %u\n", size);
+    
+    write_node(f, node);
+    
+    fclose(f);
+
+}
+
+Vector Vector::operator=(const Vector& rv)
+{
+    return Vector(rv);
+}
+
+Vector Vector::operator+(const Vector& rv) const
+{
+    //if (size != rv.size) throw Exception();
+    
+    Vector res(size);
+
+    res.node = Node<Rational_number>::copy(res.node, this->node);
+    
+    for(unsigned int i = 0; i < size; i++)
+    {
+        res(i)= (Rational_number)(*this)[i] + rv[i];
+    }
+
+    return res;
+}
+
+
+Vector Vector::operator-(const Vector& rv) const
+{
+    //if (size != rv.size) throw Exception();
+    
+    Vector res(size);
+
+    res.node = Node<Rational_number>::copy(res.node, this->node);
+    
+    for(unsigned int i = 0; i < size; i++)
+    {
+        res(i)= (Rational_number)(*this)[i] - rv[i];
+    }
+
+    return res;
+}
+
+Vector operator* (const Vector& lv,const Rational_number& rv)
+{
+    Vector res(lv);
+    
+    for(unsigned int i = 0; i < res.size; i++)
+    {
+        res(i) = lv[i] * rv;
+    }
+    return res;
+}
+
+Vector operator/ (const Vector& lv,const Rational_number& rv)
+{
+    Vector res(lv);
+    
+    for(unsigned int i = 0; i < res.size; i++)
+    {
+        res(i) = lv[i] / rv;
+    }
+    return res;
+}
+
+Vector operator* (const Rational_number& lv,const Vector& rv)
+{
+    Vector res(rv);
+    
+    for(unsigned int i = 0; i < res.size; i++)
+    {
+        res(i) = lv * rv[i];
+    }
+    return res;
+}
+
+
+Rational_number Vector::operator*(const Vector& rv) const
+{
+    //if (size != rv.size) throw Exception();
+    Rational_number res;
+    for(unsigned int i = 0; i < size; i++)
+    {
+        res+= (Rational_number)(*this)[i] + rv[i];
+    }
+
+    return res;
+}
+
 char* Vector::to_string()
 {
     char* completed = NULL;
@@ -224,15 +353,15 @@ char* Vector::to_string()
     completed = new char[strlen(str) + 2];
     strcpy(completed, str);
     strcat(completed, " \0");
-
+    
+    delete[] str;
     for (unsigned int i = 1; i < size; i++)
     {
         Rational_number rat = Iterator(*this, i).find(node);
 
-        char* tmp = new char [strlen(completed) + 1];
-        strcpy(tmp, completed);
+        char* tmp = completed;
         char* str_rat = rat.to_string();
-        completed = new char [strlen(completed) + strlen(completed) + 2];
+        completed = new char [strlen(tmp) + strlen(str_rat) + 2];
         strcpy(completed, tmp);
         strcat(completed, str_rat);
         strcat(completed, " \0");
