@@ -185,8 +185,6 @@ const Rational_number operator- (const Rational_number lv, const Rational_number
     Rational_number sub;
     int64_t num;
     
-    printf("lv sign = %d\n", lv.sign);
-    printf("rv sign = %d\n", rv.sign);
     if (((lv.sign < 0 && rv.sign > 0) || (lv.sign > 0 && rv.sign < 0)) 
         &&((uint64_t)lv.numerator *(uint64_t)rv.denominator 
         + (uint64_t)rv.numerator * (uint64_t)lv.denominator) > (uint64_t)UINT32_MAX) 
