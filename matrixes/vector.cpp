@@ -64,36 +64,42 @@ Rational_number Vector::Iterator::operator= (const Rational_number& num)
 {
     if (num == 0) remove();
     else
-        master.node = Node<Rational_number>::insert(index, master.node, num);
+    {
+        Rational_number& location = provide();
+        location = num;
+    }
     return num;
 }
 
 Rational_number Vector::Iterator::operator+= (const Rational_number& num)
 {
-    Rational_number& location = provide();
+    Rational_number &location = provide();
     location += num;
     Rational_number res = location;
     if (res == 0) remove();
+
     return res;
 }
 
 
 Rational_number Vector::Iterator::operator-= (const Rational_number& num)
 {
-    Rational_number& location = provide();
+    Rational_number &location = provide();
     location -= num;
     Rational_number res = location;
     if (res == 0) remove();
+
     return res;
 }
 
 
 Rational_number Vector::Iterator::operator*= (const Rational_number& num)
 {
-    Rational_number& location = provide();
+    Rational_number &location = provide();
     location *= num;
     Rational_number res = location;
     if (res == 0) remove();
+
     return res;
 }
 
@@ -111,9 +117,10 @@ Rational_number Vector::Iterator::operator/= (const Rational_number& num)
 Rational_number Vector::Iterator::operator++ ()
 {
     Rational_number& location = provide();
-    Rational_number res = ++location;
+    ++location;
     if (location == 0) remove();
-    return res;
+
+    return location;
 }
 
 Rational_number Vector::Iterator::operator++ (int)
@@ -121,6 +128,7 @@ Rational_number Vector::Iterator::operator++ (int)
     Rational_number& location = provide();
     Rational_number res = location++;
     if (location == 0) remove();
+
     return res;
 }
 
@@ -129,6 +137,7 @@ Rational_number Vector::Iterator::operator-- ()
     Rational_number& location = provide();
     Rational_number res = --location;
     if (location == 0) remove();
+
     return res;
 }
 
@@ -137,6 +146,7 @@ Rational_number Vector::Iterator::operator-- (int)
     Rational_number& location = provide();
     Rational_number res = location--;
     if (location == 0) remove();
+
     return res;
 }
 
@@ -157,7 +167,7 @@ Vector::Iterator::operator Rational_number()
 Rational_number& Vector::Iterator::provide()
 {
     Node<Rational_number>* head = master.node;
-    if (find(master.node) == 0) head = Node<Rational_number>::insert(index, master.node, 0);
+    if (find(master.node) == 0) master.node = head = Node<Rational_number>::insert(index, master.node, 0);
     while(true)
     {
         if (index == head->return_key()) return head->value;
@@ -202,11 +212,15 @@ Vector::Vector(unsigned int size, States state) : node(0)
     }
 }
 
-Vector::Vector(const Vector& vec) : node(0)
+Vector::Vector(const Vector& vec)
 {
+    node = 0;
     size = vec.size;
     
-    node = Node<Rational_number>::copy(node, vec.node);
+    for(unsigned int i = 0; i < size; i++)
+    {
+        (*this)(i) = vec[i];
+    }
 }
 
 Vector::Vector(const char* file_name) : node(0)
@@ -262,16 +276,19 @@ void Vector::write(const char* file_name)
 
 Vector Vector::operator=(const Vector& rv)
 {
-    return Vector(rv);
+    for(unsigned int i = 0; i < size; i++)
+    {
+        (*this)(i) = rv[i];
+    }
+    return *this;
 }
 
 Vector Vector::operator+(const Vector& rv) const
 {
     //if (size != rv.size) throw Exception();
     
-    Vector res(size);
+    Vector res(*this);
 
-    res.node = Node<Rational_number>::copy(res.node, this->node);
     
     for(unsigned int i = 0; i < size; i++)
     {
@@ -298,14 +315,19 @@ Vector Vector::operator-(const Vector& rv) const
     return res;
 }
 
+Vector Vector::operator*=(const Rational_number& rv)
+{
+    for (unsigned int i = 0; i < size; i++)
+    {
+        (*this)(i) = (*this)(i) * rv;
+    }
+    return *this;
+}
+
 Vector operator* (const Vector& lv,const Rational_number& rv)
 {
-    Vector res(lv);
-    
-    for(unsigned int i = 0; i < res.size; i++)
-    {
-        res(i) = lv[i] * rv;
-    }
+    Vector res = lv;
+    res *= rv;
     return res;
 }
 

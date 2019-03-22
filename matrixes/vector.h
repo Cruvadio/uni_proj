@@ -98,6 +98,7 @@ class Vector : public MathObject
 
         Vector operator+(const Vector& rv) const;
         Vector operator-(const Vector& rv) const;
+        Vector operator*= (const Rational_number& rv);
 
         friend Vector operator* (const Vector& lv,const Rational_number& rv);
         friend Vector operator/ (const Vector& lv,const Rational_number& rv);
