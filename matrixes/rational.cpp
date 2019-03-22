@@ -159,6 +159,9 @@ const Rational_number operator+ (const Rational_number lv, const Rational_number
     Rational_number sum;
     int64_t num;
 
+    if (lv == 0) return rv;
+    if (rv == 0) return lv;
+
     if (((lv.sign > 0 && rv.sign > 0) || (lv.sign < 0 && rv.sign < 0)) 
         &&((uint64_t)lv.numerator *(uint64_t)rv.denominator 
         + (uint64_t)rv.numerator * (uint64_t)lv.denominator) > (uint64_t)UINT32_MAX) 
