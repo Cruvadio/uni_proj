@@ -122,6 +122,7 @@ Node<T>* Node<T>::remove_min (Node<T>* p)
 template <class T> 
 Node<T>* Node<T>::copy(Node<T>* p, Node<T>* q)
 {
+    if (!p) return 0;
     p = insert(q->key, p, q->value);
     p = copy(p, q->left);
     p = copy(p, q->right);
