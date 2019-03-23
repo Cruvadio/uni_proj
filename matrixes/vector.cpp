@@ -8,11 +8,7 @@
 
 Vector::~Vector()
 {
-    for(unsigned int i = 0; i < size; i++)
-    {
-        if ((*this)[i] != (Rational_number)0)
-            node = Node<Rational_number>::remove(i, node);
-    }
+    while(node) Node<Rational_number>::remove(node->return_key(), node);
 }
 
 char* MathObject::read_str(FILE* file,int &err)
@@ -164,6 +160,54 @@ Vector::Iterator::operator Rational_number()
     return find(master.node);
 }
 
+void Vector::calculations (Vector& vec, Node<Rational_number>* q, char op) const
+{
+    if (!q)  return;
+    switch (op)
+    {
+        case '+':
+            vec(q->return_key()) += q->value;
+            break;
+        case '-':
+            vec(q->return_key()) -= q->value;
+            break;
+    }
+    calculations(vec, q->return_left(), op);
+    calculations(vec, q->return_right(), op);
+}
+
+void Vector::calculations (Vector& vec, Rational_number rat,Node<Rational_number>* q, char op) const
+{
+    if (!q)  return;
+    switch (op)
+    {
+        case '*':
+            vec(q->return_key()) *= rat;
+            break;
+        case '/':
+            vec(q->return_key()) /= rat;
+            break;
+    }
+    Rational_number rat1 = vec[q->return_key()];
+    printf("vec[%u](%s %c %s)\n",q->return_key(), rat1.to_string(), op, rat.to_string());
+    calculations(vec,rat, q->return_left(), op);
+    calculations(vec,rat, q->return_right(), op);
+}
+
+
+
+void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const
+{
+    if (!p) return;
+    Rational_number ratio = Accessor(*this, p->return_key()).find(q);
+    if (ratio == 0) return;
+
+    rat += ratio * p->value;
+
+    dot_product(rat, p->return_left(), q);
+    dot_product(rat, p->return_right(), q);
+}
+
 Rational_number& Vector::Iterator::provide()
 {
     Node<Rational_number>* head = master.node;
@@ -217,10 +261,7 @@ Vector::Vector(const Vector& vec)
     node = 0;
     size = vec.size;
     
-    for(unsigned int i = 0; i < size; i++)
-    {
-        (*this)(i) = vec[i];
-    }
+    node = Node<Rational_number>::copy(node, vec.node);
 }
 
 Vector::Vector(const char* file_name) : node(0)
@@ -247,7 +288,10 @@ Vector::Vector(const char* file_name) : node(0)
     fclose(f);
 }
 
-
+Vector::operator bool()
+{
+    return node? true : false;
+}
 void Vector::write_node(FILE* file, Node<Rational_number>* p)
 {
     if (!p) return;
@@ -276,24 +320,20 @@ void Vector::write(const char* file_name)
 
 Vector Vector::operator=(const Vector& rv)
 {
-    for(unsigned int i = 0; i < size; i++)
-    {
-        (*this)(i) = rv[i];
-    }
+    size = rv.size;
+    while(node) Node<Rational_number>::remove(node->return_key(), node);
+
+    node = Node<Rational_number>::copy(node, rv.node);
+
     return *this;
 }
 
 Vector Vector::operator+(const Vector& rv) const
 {
     //if (size != rv.size) throw Exception();
-    
     Vector res(*this);
 
-    
-    for(unsigned int i = 0; i < size; i++)
-    {
-        res(i)= (Rational_number)(*this)[i] + rv[i];
-    }
+    calculations(res, rv.node, '+');
 
     return res;
 }
@@ -303,53 +343,46 @@ Vector Vector::operator-(const Vector& rv) const
 {
     //if (size != rv.size) throw Exception();
     
-    Vector res(size);
+    Vector res(*this);
 
-    res.node = Node<Rational_number>::copy(res.node, this->node);
-    
-    for(unsigned int i = 0; i < size; i++)
-    {
-        res(i)= (Rational_number)(*this)[i] - rv[i];
-    }
+    calculations(res, rv.node, '-');
 
     return res;
 }
 
 Vector Vector::operator*=(const Rational_number& rv)
 {
-    for (unsigned int i = 0; i < size; i++)
-    {
-        (*this)(i) = (*this)(i) * rv;
-    }
+    (*this) = (*this) * rv;
+    return *this;
+}
+
+Vector Vector::operator/=(const Rational_number& rv)
+{
+    (*this) = (*this) / rv;
     return *this;
 }
 
 Vector operator* (const Vector& lv,const Rational_number& rv)
 {
-    Vector res = lv;
-    res *= rv;
+    Vector res (lv);
+    res.calculations(res, rv, lv.node, '*');
     return res;
 }
 
 Vector operator/ (const Vector& lv,const Rational_number& rv)
 {
     Vector res(lv);
+
+    res.calculations(res, rv, lv.node, '/');
     
-    for(unsigned int i = 0; i < res.size; i++)
-    {
-        res(i) = lv[i] / rv;
-    }
     return res;
 }
-
 Vector operator* (const Rational_number& lv,const Vector& rv)
 {
     Vector res(rv);
     
-    for(unsigned int i = 0; i < res.size; i++)
-    {
-        res(i) = lv * rv[i];
-    }
+    res.calculations(res, lv, rv.node, '*');
+
     return res;
 }
 
@@ -358,10 +391,8 @@ Rational_number Vector::operator*(const Vector& rv) const
 {
     //if (size != rv.size) throw Exception();
     Rational_number res;
-    for(unsigned int i = 0; i < size; i++)
-    {
-        res+= (Rational_number)(*this)[i] + rv[i];
-    }
+    
+    dot_product(res, node, rv.node);
 
     return res;
 }

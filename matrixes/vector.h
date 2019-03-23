@@ -31,6 +31,10 @@ class Vector : public MathObject
     unsigned int size;
     int references;
 
+    void calculations (Vector& vec,Node<Rational_number>* q, char op) const;
+    void dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const;
+    void calculations(Vector& vec,Rational_number rat, Node<Rational_number>* q, char op) const;
+
     public:
         class Iterator
         {
@@ -93,12 +97,16 @@ class Vector : public MathObject
         {
             return Iterator(*this, index);
         }
-        
+
+                
+        operator bool();
+
         Vector operator=(const Vector& rv);
 
         Vector operator+(const Vector& rv) const;
         Vector operator-(const Vector& rv) const;
         Vector operator*= (const Rational_number& rv);
+        Vector operator/=(const Rational_number& rv);
 
         friend Vector operator* (const Vector& lv,const Rational_number& rv);
         friend Vector operator/ (const Vector& lv,const Rational_number& rv);
