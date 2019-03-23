@@ -159,15 +159,13 @@ const Rational_number operator+ (const Rational_number lv, const Rational_number
     Rational_number sum;
     int64_t num;
 
-    if (lv == 0) return rv;
-    if (rv == 0) return lv;
 
     if (((lv.sign > 0 && rv.sign > 0) || (lv.sign < 0 && rv.sign < 0)) 
         &&((uint64_t)lv.numerator *(uint64_t)rv.denominator 
         + (uint64_t)rv.numerator * (uint64_t)lv.denominator) > (uint64_t)UINT32_MAX) 
         throw Overflow("+", lv, rv);
-
-    num = lv.sign * lv.numerator * rv.denominator + rv.sign * rv.numerator * lv.denominator;
+    
+    num = lv.sign * (long)(lv.numerator * rv.denominator) + rv.sign * (long)(rv.numerator * lv.denominator);
     if (num < 0) 
     {
         sum.sign = -1;
@@ -180,6 +178,8 @@ const Rational_number operator+ (const Rational_number lv, const Rational_number
     }
     if (lv.denominator * rv.denominator > UINT32_MAX) throw Overflow("+", lv, rv);
     sum.denominator = lv.denominator * rv.denominator;
+    sum.make_canonical();
+
     return sum;
 }
 
@@ -193,7 +193,7 @@ const Rational_number operator- (const Rational_number lv, const Rational_number
         + (uint64_t)rv.numerator * (uint64_t)lv.denominator) > (uint64_t)UINT32_MAX) 
         throw Overflow("-", lv, rv);
 
-    num = lv.sign * lv.numerator * rv.denominator - rv.sign * rv.numerator * lv.denominator;
+    num = lv.sign * (long)(lv.numerator * rv.denominator) - rv.sign * (long)(rv.numerator * lv.denominator);
     if (num < 0) 
     {
         sub.sign = -1;
@@ -206,6 +206,7 @@ const Rational_number operator- (const Rational_number lv, const Rational_number
     }
     if (lv.denominator * rv.denominator > UINT32_MAX) throw Overflow("-", lv, rv);
     sub.denominator = lv.denominator * rv.denominator;
+    sub.make_canonical();
     return sub;
 }
 
@@ -218,7 +219,8 @@ const Rational_number operator* (const Rational_number lv, const Rational_number
     mul.numerator = lv.numerator * rv.numerator;
     mul.sign = lv.sign * rv.sign;
     mul.denominator = lv.denominator * rv.denominator;
-
+    
+    mul.make_canonical();
     return mul;
 }
 
@@ -231,6 +233,8 @@ const Rational_number operator/ (const Rational_number lv, const Rational_number
     div.numerator = lv.numerator * rv.denominator;
     div.sign = lv.sign * rv.sign;
     div.denominator = lv.denominator * rv.numerator;
+
+    div.make_canonical();
 
     return div;
 }
