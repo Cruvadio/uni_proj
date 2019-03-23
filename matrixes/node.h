@@ -7,7 +7,8 @@
 template <class T> class Node
 {
     unsigned int key;
-
+    
+    short height;
     Node<T>* left;
     Node<T>* right;
     static unsigned short return_height(Node<T>* p);
@@ -44,10 +45,12 @@ unsigned short Node<T>::return_height (Node<T>* p)
     return ((lh > rh) ? lh : rh) + 1;
 }
 
+
+
 template<class T> 
 int Node<T>::balance_factor(Node<T>* p)
 {
-    return (return_height(p->right) - return_height(p->left));
+    return ( - return_height(p->left));
 }
 
 template<class T> 
