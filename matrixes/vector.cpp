@@ -8,7 +8,10 @@
 
 Vector::~Vector()
 {
-    while(node) Node<Rational_number>::remove(node->return_key(), node);
+    for (unsigned int i = 0; i < size; i++)
+    {
+        if (Accessor(*this, i).find(node) != 0) node = Node<Rational_number>::remove(i, node);
+    }
 }
 
 char* MathObject::read_str(FILE* file,int &err)
@@ -189,12 +192,19 @@ void Vector::calculations (Vector& vec, Rational_number rat,Node<Rational_number
             break;
     }
     Rational_number rat1 = vec[q->return_key()];
-    printf("vec[%u](%s %c %s)\n",q->return_key(), rat1.to_string(), op, rat.to_string());
+   // printf("vec[%u](%s %c %s)\n",q->return_key(), rat1.to_string(), op, rat.to_string());
     calculations(vec,rat, q->return_left(), op);
     calculations(vec,rat, q->return_right(), op);
 }
 
+void Vector::copy(Node<Rational_number>* p)
+{
+    if (!p) return;
+    node = Node<Rational_number>::insert(p->return_key(), node, p->value);
 
+    copy(p->return_left());
+    copy(p->return_right());
+}
 
 void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const
 {
@@ -261,7 +271,7 @@ Vector::Vector(const Vector& vec)
     node = 0;
     size = vec.size;
     
-    node = Node<Rational_number>::copy(node, vec.node);
+    copy(vec.node);
 }
 
 Vector::Vector(const char* file_name) : node(0)
@@ -321,9 +331,8 @@ void Vector::write(const char* file_name)
 Vector Vector::operator=(const Vector& rv)
 {
     size = rv.size;
-    while(node) Node<Rational_number>::remove(node->return_key(), node);
 
-    node = Node<Rational_number>::copy(node, rv.node);
+    copy(rv.node);
 
     return *this;
 }
