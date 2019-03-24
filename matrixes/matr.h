@@ -93,7 +93,7 @@ class Matrix : public MathObject
             Coord_type type;      
             
             Vector provide();
-            Iterator_Vec(const Matrix& master, unsigned int coord, Coord_type type);
+            Accessor_Vec(const Matrix& master, unsigned int coord, Coord_type type);
 
             operator Vector() const;
 
