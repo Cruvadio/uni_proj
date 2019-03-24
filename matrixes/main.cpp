@@ -8,7 +8,7 @@ int main()
     {
         Rational_number rat("135", "573");
         Rational_number rat1 (-20);
-        Vector vec(10, Zeros);
+        Vector vec(10000, Zeros);
 
         ++vec(0);
         vec(5) = rat;
@@ -16,7 +16,7 @@ int main()
 
         vec(2) = rat*2;
         
-       // Vector vec2 = vec * (Rational_number)2;
+        Vector vec2 = vec * (Rational_number)2;
         vec.write("vector.txt");
         
         vec(2) = 0;
@@ -25,14 +25,14 @@ int main()
         vec(8) = -30 + rat;
         vec(2) -= rat1;
 
-       // vec2 = vec + vec2;
+        vec2 = vec + vec2;
 
         vec.write("vector.txt");
-        //vec = vec * (Rational_number)2;
+        vec = vec * (Rational_number)2;
         char* str = vec.to_string();
 
         printf("%s\n", str);
-        //vec2.write("vector2.txt");
+        vec2.write("vector2.txt");
         delete[] str;
     }
     catch(NotARational &n)
