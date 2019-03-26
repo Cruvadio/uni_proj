@@ -35,7 +35,7 @@ class Vector : public MathObject
     void dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const;
     void calculations(Vector& vec,Rational_number rat, Node<Rational_number>* q, char op) const;
     void copy (Node<Rational_number>* p);
-
+    void remove_all(Node<Rational_number>* p);
     public:
         class Iterator
         {
@@ -88,10 +88,10 @@ class Vector : public MathObject
         void write (const char* file_name);
         ~Vector();
 
-        Accessor operator[](unsigned int index) const
+        Rational_number operator[](unsigned int index) const
         {
             //if (index > size || index < 0??) throw Exception();
-            return Accessor(*this, index);
+            return Node<Rational_number>::find(index, node);
         }
 
         Iterator operator() (unsigned int index)

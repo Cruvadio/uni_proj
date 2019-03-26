@@ -11,7 +11,7 @@ Vector::~Vector()
     for (unsigned int i = 0; i < size; i++)
     {
         if (Accessor(*this, i).find(node) != 0) node = Node<Rational_number>::remove(i, node);
-    }
+    } 
 }
 
 char* MathObject::read_str(FILE* file,int &err)
@@ -116,10 +116,10 @@ Rational_number Vector::Iterator::operator/= (const Rational_number& num)
 Rational_number Vector::Iterator::operator++ ()
 {
     Rational_number& location = provide();
-    ++location;
+    Rational_number res = ++location;
     if (location == 0) remove();
 
-    return location;
+    return res;
 }
 
 Rational_number Vector::Iterator::operator++ (int)
