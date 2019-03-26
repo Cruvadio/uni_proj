@@ -26,9 +26,11 @@ template <class T> class Node
         Node(const unsigned int& k,const T& val = 0) 
         : value(val), key(k) , left(0) , right(0) {}
         
-        static Node<T>* copy (Node<T>* p, Node<T>* q);
+        static void copy (Node<T>* p, Node<T>* q);
         static Node<T>* remove (unsigned int k,Node<T>* p);
         static Node<T>* insert (unsigned int k, Node<T>* p, const T& value);
+        static T find (unsigned int k, Node<T>* p);
+        //static Node<T>* remove_all(Node<T>* p);
 
         unsigned int return_key() {   return key; }
         Node<T>* return_left() {    return left; }
@@ -50,7 +52,7 @@ unsigned short Node<T>::return_height (Node<T>* p)
 template<class T> 
 int Node<T>::balance_factor(Node<T>* p)
 {
-    return ( - return_height(p->left));
+    return (return_height(p->right) - return_height(p->left));
 }
 
 template<class T> 
@@ -122,14 +124,14 @@ Node<T>* Node<T>::remove_min (Node<T>* p)
     return balance_tree(p);
 }
 
+
 template <class T> 
-Node<T>* Node<T>::copy(Node<T>* p, Node<T>* q)
+void Node<T>::copy(Node<T>* p, Node<T>* q)
 {
-    if (!p) return 0;
+    if (!q) return;
+    copy(p, q->left);
+    copy(p, q->right);
     p = insert(q->key, p, q->value);
-    p = copy(p, q->left);
-    p = copy(p, q->right);
-    return p;
 }
 
 template <class T> 
@@ -158,6 +160,15 @@ Node<T>* Node<T>::remove(unsigned int k, Node<T>* p)
         return balance_tree(min);
     }
     return balance_tree(p);
+}
+
+template <class T>
+T Node<T>::find(unsigned int k, Node<T>* p)
+{
+    if (!p) return 0;
+    if (k == p->key) return p->value;
+    if (k < p->key) return find(k, p->left);
+    return find(k, p->right);
 }
 
 
