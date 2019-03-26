@@ -50,7 +50,9 @@ class Matrix : public MathObject
             unsigned int row;
             unsigned int col;
             
-            Rational_number& provide();
+            Vector& provide();
+            void remove();
+            Vector find(Node<Vector>* p);
             Iterator_Rat(Matrix& master, Matrix_coords coords);
             public:
                 
@@ -58,6 +60,14 @@ class Matrix : public MathObject
             Rational_number operator=(const Rational_number& rat);
             Rational_number operator*=(const Rational_number& rat);
             Rational_number operator/=(const Rational_number& rat);
+            Rational_number operator+=(const Rational_number& rat);
+            Rational_number operator-=(const Rational_number& rat);
+            Rational_number operator++();
+            Rational_number operator++(int);
+            Rational_number operator--();
+            Rational_number operator--(int);
+
+
 
         };
 /*
@@ -118,9 +128,9 @@ class Matrix : public MathObject
         Matrix operator*(const Matrix& mtr);
         
         Iterator_Rat operator()(unsigned int row, unsigned int col);
-        Accessor_Rat operator[](Matrix_coords coords) const;
-        Accessor_Vec operator[](Matrix_row_coord row) const;
-        Accessor_Vec operator[](Matrix_col_coord col) const;
+        Rational_number operator[](Matrix_coords coords) const;
+        Vector operator[](Matrix_row_coord row) const;
+        Vector operator[](Matrix_col_coord col) const;
 };
 
 #endif
