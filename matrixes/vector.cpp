@@ -191,8 +191,6 @@ void Vector::calculations (Vector& vec, Rational_number rat,Node<Rational_number
             vec(q->return_key()) /= rat;
             break;
     }
-    Rational_number rat1 = vec[q->return_key()];
-   // printf("vec[%u](%s %c %s)\n",q->return_key(), rat1.to_string(), op, rat.to_string());
     calculations(vec,rat, q->return_left(), op);
     calculations(vec,rat, q->return_right(), op);
 }
@@ -298,11 +296,11 @@ Vector::Vector(const char* file_name) : node(0)
     fclose(f);
 }
 
-Vector::operator bool()
+Vector::operator bool() const
 {
     return node? true : false;
 }
-void Vector::write_node(FILE* file, Node<Rational_number>* p)
+void Vector::write_node(FILE* file, Node<Rational_number>* p) const
 {
     if (!p) return;
 
@@ -315,7 +313,7 @@ void Vector::write_node(FILE* file, Node<Rational_number>* p)
     write_node(file, p->return_right());
 }
 
-void Vector::write(const char* file_name)
+void Vector::write(const char* file_name) const
 {
     FILE* f = fopen(file_name, "w");
 
@@ -406,11 +404,11 @@ Rational_number Vector::operator*(const Vector& rv) const
     return res;
 }
 
-char* Vector::to_string()
+char* Vector::to_string() const
 {
     char* completed = NULL;
     
-    char* str = Iterator(*this, 0).find(node).to_string();
+    char* str = (*this)[0].to_string();
     
     completed = new char[strlen(str) + 2];
     strcpy(completed, str);
@@ -419,16 +417,14 @@ char* Vector::to_string()
     delete[] str;
     for (unsigned int i = 1; i < size; i++)
     {
-        Rational_number rat = Iterator(*this, i).find(node);
-
         char* tmp = completed;
-        char* str_rat = rat.to_string();
-        completed = new char [strlen(tmp) + strlen(str_rat) + 2];
+        str = (*this)[i].to_string();
+        completed = new char [strlen(tmp) + strlen(str) + 2];
         strcpy(completed, tmp);
-        strcat(completed, str_rat);
+        strcat(completed, str);
         strcat(completed, " \0");
         delete[] tmp;
-        delete[] str_rat;
+        delete[] str;
     }
 
     return completed;

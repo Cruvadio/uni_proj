@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include "rational.h"
+#include "matr.h"
 #include "exception.h"
 #include "node.h"
 
@@ -14,8 +15,8 @@ class MathObject
     protected:
         char* read_str(FILE* file, int& err);
     public:
-        virtual char* to_string() = 0;
-        virtual void write(const char* file_name) = 0;
+        virtual char* to_string()const = 0;
+        virtual void write(const char* file_name)const = 0;
 };
 
 enum States
@@ -36,6 +37,8 @@ class Vector : public MathObject
     void calculations(Vector& vec,Rational_number rat, Node<Rational_number>* q, char op) const;
     void copy (Node<Rational_number>* p);
     void remove_all(Node<Rational_number>* p);
+
+    void write_node(FILE* file, Node<Rational_number>* p) const;
     public:
         class Iterator
         {
@@ -79,13 +82,13 @@ class Vector : public MathObject
         };
         friend class Iterator;
         friend class Accessor;
+        friend class Matrix;
     
         Vector(unsigned int size, States state = Zeros);
         Vector(const Vector& vec);
         Vector(const char* file_name);
 
-        void write_node(FILE* file, Node<Rational_number>* p);
-        void write (const char* file_name);
+        void write (const char* file_name) const;
         ~Vector();
 
         Rational_number operator[](unsigned int index) const
@@ -100,7 +103,7 @@ class Vector : public MathObject
         }
 
                 
-        operator bool();
+        operator bool() const;
 
         Vector operator=(const Vector& rv);
 
@@ -117,7 +120,7 @@ class Vector : public MathObject
 
 
 
-        char* to_string();
+        char* to_string() const;
 };
 
 #endif
