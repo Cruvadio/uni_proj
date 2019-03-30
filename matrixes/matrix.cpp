@@ -6,6 +6,11 @@
 #include <cstdio>
 #include <cstring>
 
+
+//
+// -----------------------------CONSTRUCTORS--------------------------
+//
+
 Matrix::Matrix(unsigned int rows, unsigned int cols, States state)
 {
     node = 0;
@@ -74,14 +79,9 @@ Matrix::Matrix(const Vector& vec, Orientation orient)
     }
 }
 
-Matrix::~Matrix()
-{
-    for (unsigned int i = 0; i < rows; i++)
-    {
-        if (Node<Vector>::find(i, node))
-            node = Node<Vector>::remove(i, node);
-    }
-}
+//
+// ---------------------------------ITERATOR_RATIONAL---------------------------
+//
 
 Matrix::Iterator_Rat::operator Rational_number()
 {
@@ -216,6 +216,10 @@ void Matrix::Iterator_Rat::remove()
     master.node = Node<Vector>::remove(row, master.node);
 }
 
+//
+// -----------------------------------ITERATOR_VECTOR-------------------------------------
+//
+
 Vector Matrix::Iterator_Vec::operator= (const Vector& rv)
 {
     //TODO Exception
@@ -270,6 +274,10 @@ void Matrix::Iterator_Vec::remove()
     master.node = Node<Vector>::remove(coord, master.node);
 }
 
+//
+// -------------------------------------OPERATORS--------------------------------------
+//
+
 Matrix Matrix::operator=(const Matrix& rv)
 {
     rows = rv.rows;
@@ -295,15 +303,6 @@ Rational_number Matrix::operator[] (Matrix_coords coords) const
 
     return vec[coords.col];
 
-}
-
-void Matrix::make_vertical_vector(Vector& vec, Node<Vector>* p, unsigned int col) const
-{
-    if (!p) return;
-    make_vertical_vector(vec, p->return_left(), col);
-    make_vertical_vector(vec, p->return_right(), col);
-
-    vec(p->return_key()) = p->value[col];
 }
 
 Vector Matrix::operator[](Matrix_col_coord coord) const
@@ -339,23 +338,6 @@ Matrix Matrix::operator~() const
         transp.node = Node<Vector>::insert(i, transp.node, vec);
     }
     return transp;
-}
-
-void Matrix::multiply(Matrix& mtr,const Matrix& rv, Node<Vector>* p) const
-{
-    if (!p) return;
-    multiply(mtr, rv, p->return_left());
-    multiply(mtr, rv, p->return_right());
-    
-    multiply(mtr, p->value, p->return_key(), rv.node);
-}
-
-void Matrix::multiply(Matrix& mtr, const Vector& vec, unsigned int row, Node<Vector>* p) const
-{
-    if (!p) return;
-    multiply(mtr, vec, row, p->return_left());
-    multiply(mtr, vec, row, p->return_right());
-    mtr(row, p->return_key()) = vec * p->value;
 }
 
 Matrix Matrix::operator*(const Matrix& rv) const
@@ -403,6 +385,165 @@ Matrix Matrix::operator^(int pow) const
         }
     return mtr;
 }
+
+
+Matrix Matrix::operator+(const Matrix& rv) const
+{
+    //TODO Exception
+    Matrix mtr(*this);
+    
+    calculations(mtr, rv.node, '+');
+
+    return mtr;
+}
+
+Matrix Matrix::operator-(const Matrix& rv) const
+{
+    //TODO Exception
+    Matrix mtr(*this);
+    
+    calculations(mtr, rv.node, '-');
+
+    return mtr;
+}
+
+Matrix Matrix::operator+=(const Matrix& rv)
+{
+    //TODO Exception
+    *this = *this + rv;
+    return *this;
+}
+
+Matrix Matrix::operator-=(const Matrix& rv)
+{
+    //TODO Exception
+    *this = *this - rv;
+    return *this;
+}
+
+Matrix Matrix::operator*=(const Matrix& rv)
+{
+    //TODO Exception
+    *this = *this * rv;
+    return *this;
+}
+Matrix::Iterator_Rat Matrix::operator()(unsigned int row, unsigned int col)
+{
+    //TODO Exception
+    
+    return Iterator_Rat(*this, row, col);
+}
+
+
+Matrix::Iterator_Vec Matrix::operator()(unsigned int row)
+{
+   return Iterator_Vec(*this, row);
+}
+
+Matrix operator* (const Matrix& lv,const Rational_number& rv)
+{
+    Matrix mtr(lv);
+    mtr.calculations(mtr, rv, lv.node, '*');
+
+    return mtr;
+}
+Matrix operator* (const Rational_number& lv,const Matrix& rv)
+{
+    Matrix mtr(rv);
+    mtr.calculations(mtr, lv, rv.node, '*');
+
+    return mtr;
+}
+
+Matrix operator/ (const Matrix& lv,const Rational_number& rv)
+{
+    Matrix mtr(lv);
+    mtr.calculations(mtr, rv, lv.node, '/');
+
+    return mtr;
+}
+
+Matrix Matrix::operator*= (const Rational_number& rv)
+{
+    *this = *this * rv;
+    return *this;
+}
+
+Matrix Matrix::operator/= (const Rational_number& rv)
+{
+    *this = *this / rv;
+    return *this;
+}
+
+//
+//---------------------------------RECURSIVE_CALCULATIONS--------------------------------
+//
+
+void Matrix::make_vertical_vector(Vector& vec, Node<Vector>* p, unsigned int col) const
+{
+    if (!p) return;
+    make_vertical_vector(vec, p->return_left(), col);
+    make_vertical_vector(vec, p->return_right(), col);
+
+    vec(p->return_key()) = p->value[col];
+}
+
+
+void Matrix::multiply(Matrix& mtr,const Matrix& rv, Node<Vector>* p) const
+{
+    if (!p) return;
+    multiply(mtr, rv, p->return_left());
+    multiply(mtr, rv, p->return_right());
+    
+    multiply(mtr, p->value, p->return_key(), rv.node);
+}
+
+void Matrix::multiply(Matrix& mtr, const Vector& vec, unsigned int row, Node<Vector>* p) const
+{
+    if (!p) return;
+    multiply(mtr, vec, row, p->return_left());
+    multiply(mtr, vec, row, p->return_right());
+    mtr(row, p->return_key()) = vec * p->value;
+}
+
+
+void Matrix::calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* p, char op) const
+{
+    if (!p) return;
+    switch(op)
+    {
+        case '*':
+            mtr(p->return_key()) = (Vector)mtr(p->return_key()) * rat;
+            break;
+        case '/':
+            mtr(p->return_key()) = (Vector)mtr(p->return_key()) / rat;
+    }
+    calculations(mtr, rat, p->return_left(), op);
+    calculations(mtr, rat, p->return_right(), op);
+}
+
+void Matrix::calculations(Matrix& mtr, Node<Vector>* p, char op) const
+{
+    if (!p) return;
+
+    calculations(mtr, p->return_left(), op);
+    calculations(mtr, p->return_right(), op);
+
+    switch(op)
+    {
+        case '+':
+            mtr(p->return_key()) += p->value;
+            break;
+        case '-':
+            mtr(p->return_key()) -= p->value;
+            break;
+    }
+
+}
+
+//
+// --------------------------------------------OTHER---------------------------------------
+//
 
 void Matrix::write_node(FILE* file, Node<Rational_number>* p, unsigned int row) const
 {
@@ -469,124 +610,16 @@ char* Matrix::to_string() const
     return completed;
 }
 
-void Matrix::calculations(Matrix& mtr, Node<Vector>* p, char op) const
+//
+// --------------------------------------DESTRUCTOR---------------------------------
+//
+
+Matrix::~Matrix()
 {
-    if (!p) return;
-
-    calculations(mtr, p->return_left(), op);
-    calculations(mtr, p->return_right(), op);
-
-    switch(op)
+    for (unsigned int i = 0; i < rows; i++)
     {
-        case '+':
-            mtr(p->return_key()) += p->value;
-            break;
-        case '-':
-            mtr(p->return_key()) -= p->value;
-            break;
+        if (Node<Vector>::find(i, node))
+            node = Node<Vector>::remove(i, node);
     }
-
 }
 
-Matrix Matrix::operator+(const Matrix& rv) const
-{
-    //TODO Exception
-    Matrix mtr(*this);
-    
-    calculations(mtr, rv.node, '+');
-
-    return mtr;
-}
-
-Matrix Matrix::operator-(const Matrix& rv) const
-{
-    //TODO Exception
-    Matrix mtr(*this);
-    
-    calculations(mtr, rv.node, '-');
-
-    return mtr;
-}
-
-Matrix Matrix::operator+=(const Matrix& rv)
-{
-    //TODO Exception
-    *this = *this + rv;
-    return *this;
-}
-
-Matrix Matrix::operator-=(const Matrix& rv)
-{
-    //TODO Exception
-    *this = *this - rv;
-    return *this;
-}
-
-Matrix Matrix::operator*=(const Matrix& rv)
-{
-    //TODO Exception
-    *this = *this * rv;
-    return *this;
-}
-Matrix::Iterator_Rat Matrix::operator()(unsigned int row, unsigned int col)
-{
-    //TODO Exception
-    
-    return Iterator_Rat(*this, row, col);
-}
-
-
-Matrix::Iterator_Vec Matrix::operator()(unsigned int row)
-{
-   return Iterator_Vec(*this, row);
-}
-
-void Matrix::calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* p, char op) const
-{
-    if (!p) return;
-    switch(op)
-    {
-        case '*':
-            mtr(p->return_key()) = (Vector)mtr(p->return_key()) * rat;
-            break;
-        case '/':
-            mtr(p->return_key()) = (Vector)mtr(p->return_key()) / rat;
-    }
-    calculations(mtr, rat, p->return_left(), op);
-    calculations(mtr, rat, p->return_right(), op);
-}
-
-Matrix operator* (const Matrix& lv,const Rational_number& rv)
-{
-    Matrix mtr(lv);
-    mtr.calculations(mtr, rv, lv.node, '*');
-
-    return mtr;
-}
-Matrix operator* (const Rational_number& lv,const Matrix& rv)
-{
-    Matrix mtr(rv);
-    mtr.calculations(mtr, lv, rv.node, '*');
-
-    return mtr;
-}
-
-Matrix operator/ (const Matrix& lv,const Rational_number& rv)
-{
-    Matrix mtr(lv);
-    mtr.calculations(mtr, rv, lv.node, '/');
-
-    return mtr;
-}
-
-Matrix Matrix::operator*= (const Rational_number& rv)
-{
-    *this = *this * rv;
-    return *this;
-}
-
-Matrix Matrix::operator/= (const Rational_number& rv)
-{
-    *this = *this / rv;
-    return *this;
-}
