@@ -3,41 +3,9 @@
 #include <cstdio>
 #include <cstring>
 
-void Matherr::debug_print()
-{
-    fprintf(stderr, "Catched exception of mathematical nature\n");
-}
-
-Matherr::Matherr(const char* op, const Rational_number& lv, const Rational_number& rv)
-{
-    this->lv = lv;
-    this->rv = rv;
-    if (op)
-    {
-        this->op = new char[strlen(op) + 1];
-        strcpy(this->op, op);
-    }
-    else op = 0;
-}
-
-Matherr::Matherr (const Matherr& m)
-{
-    lv = m.lv;
-    rv = m.rv;
-    if (m.op)
-    {
-        op = new char[strlen(op) + 1];
-        strcpy(op, m.op);
-    }
-    else op = 0;
-
-}
-
-Matherr::~Matherr()
-{
-    if (op) delete[] op;
-}
-
+// 
+// --------------------------------------OVERFLOW-----------------------------------
+//
 void Overflow::debug_print()
 {
     if (op == 0)
@@ -59,6 +27,11 @@ void Overflow::debug_print()
     delete[] str_rv;
 }
 
+//
+// ------------------------------------ZERODIVIDE------------------------------------
+//
+
+
 void Zerodivide::debug_print()
 {
     if (!op)
@@ -74,6 +47,10 @@ void Zerodivide::debug_print()
     delete[] str_rv;
 }
 
+//
+//------------------------------------WRONG_LEXEME-----------------------------------
+//
+ 
 WrongLexeme::WrongLexeme(const char* lexeme)
 {
     if (!lexeme) this->lexeme = 0;
@@ -101,4 +78,65 @@ void NotARational::debug_print()
 
 Exception::~Exception()
 {
+}
+
+//
+// ----------------------------------WRONG_VECTOR_SIZE---------------------------------
+//
+
+void WrongVectorSize::debug_print()
+{
+    if (!op)
+        fprintf(stderr, "Wrong size of vector met in the constructor!\n");
+    else 
+    {
+        fprintf(stderr, "Can't make '%s'-operation because size of left and right vectors are incorrect!\n",op);
+        fprintf(stderr, "Size of vectors should be equal.\n");
+    }
+}
+
+//
+// ----------------------------------WRONG_MATRIX_SIZE---------------------------------
+//
+
+void WrongMatrixSize::debug_print()
+{
+    if (!op)
+    {
+        fprintf(stderr, "Wrong size of matrix met in the constructor!\n");
+        fprintf(stderr, "Rows and columns must be equal.\n");
+    }
+
+    else if (!strcmp(op, "^")) fprintf (stderr, "Matrix must have equal rows and columns\n");
+    else
+    {
+        fprintf(stderr, "Can't make '%s'-operation because size of left and right matrix are incorrect!\n",op);
+        if (!strcmp(op, "*"))
+            fprintf(stderr, "Columns of left matrix and rows of right matrix must be equal");
+        else
+            fprintf(stderr, "Matrxes must have equal sizes.\n");
+    }
+
+}
+
+//
+// -----------------------------------OUT_OF_RANGE----------------------------------------
+//
+
+void OutOfRangeVector::debug_print()
+{
+    char* str = vec.to_string();
+
+    fprintf(stderr, "'%u' is out of range of %s\n",index, str);
+
+    delete[] str;
+}
+
+void OutOfRangeMatrix::debug_print()
+{
+    char* str = mat.to_string();
+
+    fprintf(stderr, "'%u' is out of range of \n%s", index, str);
+
+    delete[] str;
 }
