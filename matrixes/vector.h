@@ -23,7 +23,7 @@ enum States
 {
     Zeros = 0,
     Ones,
-    Elementary,
+    Elementary
 };
 
 class Vector : public MathObject
@@ -49,7 +49,6 @@ class Vector : public MathObject
             Iterator(Vector& a_master, unsigned int ind) : master(a_master), index(ind) {}
 
             Rational_number& provide();
-            Rational_number find(Node<Rational_number>* p);
             void remove();
             public:
                 operator Rational_number();
@@ -69,19 +68,7 @@ class Vector : public MathObject
 
         };
 
-        class Accessor
-        {
-            friend class Vector;
-
-            const Vector& master;
-            unsigned int index;
-            Rational_number find(Node<Rational_number> *p);
-            Accessor(const Vector& a_master, unsigned int i) : master(a_master), index(i) {}
-            public:
-                operator Rational_number();
-        };
         friend class Iterator;
-        friend class Accessor;
         friend class Matrix;
     
         Vector(unsigned int size, States state = Zeros);
@@ -94,7 +81,8 @@ class Vector : public MathObject
         Rational_number operator[](unsigned int index) const
         {
             //if (index > size || index < 0??) throw Exception();
-            return Node<Rational_number>::find(index, node);
+            Node<Rational_number>* p = Node<Rational_number>::find(index, node);
+            return p ? p->value : 0;
         }
 
         Iterator operator() (unsigned int index)
@@ -111,6 +99,8 @@ class Vector : public MathObject
         Vector operator-(const Vector& rv) const;
         Vector operator*= (const Rational_number& rv);
         Vector operator/=(const Rational_number& rv);
+        Vector operator-= (const Vector& rv);
+        Vector operator+=(const Vector& rv);
 
         friend Vector operator* (const Vector& lv,const Rational_number& rv);
         friend Vector operator/ (const Vector& lv,const Rational_number& rv);
