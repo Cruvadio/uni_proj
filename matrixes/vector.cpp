@@ -3,59 +3,64 @@
 #include <cstdio>
 #include <cstring>
 
-Vector::~Vector()
+//
+// ---------------------------------------CONSTRUCTORS------------------------------------
+//
+
+Vector::Vector(unsigned int size, States state) : node(0)
 {
-    for (unsigned int i = 0; i < size; i++)
+    this->size = size;
+
+    switch(state)
     {
-        if (Node<Rational_number>::find(i, node)) 
-            node = Node<Rational_number>::remove(i, node);
-    } 
+    case Zeros:
+        break;
+    case Ones:
+        for (unsigned int i = 0; i < size; i++)
+            (*this)(i)= 1;
+        break;
+    default:
+        //throw Exception();
+        break;
+    }
 }
 
-char* MathObject::read_str(FILE* file,int &err)
+Vector::Vector(const Vector& vec)
 {
-    int i = 0;
-    char* str = NULL;
-    do
-    {
-        int ch = fgetc(file);
+    node = 0;
+    size = vec.size;
+    
+    Node<Rational_number>::copy(node, vec.node);
+}
 
-        char* temp =(char*) realloc(str,sizeof(char)*(i + 1));
-        if (temp == NULL)
+Vector::Vector(const char* file_name) : node(0)
+{
+    FILE* f = fopen(file_name, "r");
+    //if (f == NULL) //throw Exception();
+   /* 
+    while(true)
+    {
+        int err = -1;
+        char* str = read_str(f, err);
+        if (err || str == NULL) 
         {
-            free(str);
-            //throw Exception();
+            if (str != NULL)
+                free(str);
             break;
         }
-        str = temp;
-        if (ch == '#')
-        {
-            while(ch != '\n' || ch != EOF) ch = fgetc(file);
-            str[i] = '\0';
-            err = (ch == EOF) ? -1 : 0;
-            return str;
-        }
+        
 
-        if (ch == EOF)
-        {
-            str[i] = '\0';
-            err = -1;
-            return str;
-        }
-        if (ch == '\n')
-        {
-            err = 0;
-            str[i] = '\0';
-            return str;
-        }
-        else
-            str[i] =(char)ch;
-        i++;
+
+        
     }
-    while (true);
-
-    return NULL;
+    */
+    fclose(f);
 }
+
+
+//
+// ------------------------------------ITERATOR_CLASS---------------------------------
+//
 
 Rational_number Vector::Iterator::operator= (const Rational_number& num)
 {
@@ -147,11 +152,33 @@ Rational_number Vector::Iterator::operator-- (int)
     return res;
 }
 
+
+Rational_number& Vector::Iterator::provide()
+{
+    Node<Rational_number>* p = Node<Rational_number>::find(index, master.node);
+
+    if (p) return p->value;
+
+    master.node = Node<Rational_number>::insert(index,master.node, 0);
+
+    return Node<Rational_number>::find(index, master.node)->value;
+}
+
+void Vector::Iterator::remove()
+{
+    master.node = Node<Rational_number>::remove(index, master.node);
+}
+
+
 Vector::Iterator::operator Rational_number()
 {
     Node<Rational_number>* p = Node<Rational_number>::find(index, master.node);
     return p ? p->value : 0;
 }
+
+//
+// --------------------------------RECURSIVE_CALCULATIONS---------------------------------
+//
 
 void Vector::calculations (Vector& vec, Node<Rational_number>* q, char op) const
 {
@@ -195,102 +222,15 @@ void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Ra
     dot_product(rat, p->return_left(), q);
     dot_product(rat, p->return_right(), q);
 }
-
-Rational_number& Vector::Iterator::provide()
-{
-    Node<Rational_number>* p = Node<Rational_number>::find(index, master.node);
-
-    if (p) return p->value;
-
-    master.node = Node<Rational_number>::insert(index,master.node, 0);
-
-    return Node<Rational_number>::find(index, master.node)->value;
-}
-
-void Vector::Iterator::remove()
-{
-    master.node = Node<Rational_number>::remove(index, master.node);
-}
-
-Vector::Vector(unsigned int size, States state) : node(0)
-{
-    this->size = size;
-
-    switch(state)
-    {
-    case Zeros:
-        break;
-    case Ones:
-        for (unsigned int i = 0; i < size; i++)
-            (*this)(i)= 1;
-        break;
-    default:
-        //throw Exception();
-        break;
-    }
-}
-
-Vector::Vector(const Vector& vec)
-{
-    node = 0;
-    size = vec.size;
-    
-    Node<Rational_number>::copy(node, vec.node);
-}
-
-Vector::Vector(const char* file_name) : node(0)
-{
-    FILE* f = fopen(file_name, "r");
-    //if (f == NULL) //throw Exception();
-   /* 
-    while(true)
-    {
-        int err = -1;
-        char* str = read_str(f, err);
-        if (err || str == NULL) 
-        {
-            if (str != NULL)
-                free(str);
-            break;
-        }
-        
-
-
-        
-    }
-    */
-    fclose(f);
-}
-
 Vector::operator bool() const
 {
     return node? true : false;
 }
-void Vector::write_node(FILE* file, Node<Rational_number>* p) const
-{
-    if (!p) return;
 
-    write_node(file, p->return_left());
+//
+// -------------------------------------OPERATORS--------------------------------
+//
 
-    char* str = p->value.to_string();
-    fprintf(file, "%u %s\n", p->return_key(), str);
-    delete[] str;
-
-    write_node(file, p->return_right());
-}
-
-void Vector::write(const char* file_name) const
-{
-    FILE* f = fopen(file_name, "w");
-
-    //if (f == NULL) throw Exception();
-    fprintf(f, "vector %u\n", size);
-    
-    write_node(f, node);
-    
-    fclose(f);
-
-}
 
 Vector Vector::operator=(const Vector& rv)
 {
@@ -393,6 +333,11 @@ Rational_number Vector::operator*(const Vector& rv) const
     return res;
 }
 
+//
+// ---------------------------------OTHER---------------------------
+//
+
+
 char* Vector::to_string() const
 {
     char* completed = NULL;
@@ -417,5 +362,89 @@ char* Vector::to_string() const
     }
 
     return completed;
+}
+
+void Vector::write_node(FILE* file, Node<Rational_number>* p) const
+{
+    if (!p) return;
+
+    write_node(file, p->return_left());
+
+    char* str = p->value.to_string();
+    fprintf(file, "%u %s\n", p->return_key(), str);
+    delete[] str;
+
+    write_node(file, p->return_right());
+}
+
+void Vector::write(const char* file_name) const
+{
+    FILE* f = fopen(file_name, "w");
+
+    //if (f == NULL) throw Exception();
+    fprintf(f, "vector %u\n", size);
+    
+    write_node(f, node);
+    
+    fclose(f);
+
+}
+
+char* MathObject::read_str(FILE* file,int &err)
+{
+    int i = 0;
+    char* str = NULL;
+    do
+    {
+        int ch = fgetc(file);
+
+        char* temp =(char*) realloc(str,sizeof(char)*(i + 1));
+        if (temp == NULL)
+        {
+            free(str);
+            //throw Exception();
+            break;
+        }
+        str = temp;
+        if (ch == '#')
+        {
+            while(ch != '\n' || ch != EOF) ch = fgetc(file);
+            str[i] = '\0';
+            err = (ch == EOF) ? -1 : 0;
+            return str;
+        }
+
+        if (ch == EOF)
+        {
+            str[i] = '\0';
+            err = -1;
+            return str;
+        }
+        if (ch == '\n')
+        {
+            err = 0;
+            str[i] = '\0';
+            return str;
+        }
+        else
+            str[i] =(char)ch;
+        i++;
+    }
+    while (true);
+
+    return NULL;
+}
+
+//
+// ------------------------------------DESTRUCTOR-------------------------------------
+//
+
+Vector::~Vector()
+{
+    for (unsigned int i = 0; i < size; i++)
+    {
+        if (Node<Rational_number>::find(i, node)) 
+            node = Node<Rational_number>::remove(i, node);
+    } 
 }
 
