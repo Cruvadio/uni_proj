@@ -6,10 +6,19 @@ int main()
 {
     try
     {
-        Rational_number rat("135", "573");
-        Rational_number rat1 (-20);
-        Vector vec(10000, Zeros);
+        Matrix mtr(10, 10, Elementary);
 
+        mtr *= 5;
+
+        Matrix mtr1 = mtr + mtr; 
+        printf("%s",mtr1.to_string());
+
+        mtr.write("matr.txt");
+
+        mtr(0, 1) = 0;
+
+        mtr.write("matr1.txt");
+        /*
         ++vec(0);
         vec(5) = rat;
         
@@ -34,6 +43,7 @@ int main()
         printf("%s\n", str);
         vec2.write("vector2.txt");
         delete[] str;
+        */
     }
     catch(NotARational &n)
     {
