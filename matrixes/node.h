@@ -26,10 +26,10 @@ template <class T> class Node
         Node(const unsigned int& k,const T& val = 0) 
         : value(val), key(k) , left(0) , right(0) {}
         
-        static void copy (Node<T>* p, Node<T>* q);
+        static void copy (Node<T>*& p, Node<T>* q);
         static Node<T>* remove (unsigned int k,Node<T>* p);
         static Node<T>* insert (unsigned int k, Node<T>* p, const T& value);
-        static T find (unsigned int k, Node<T>* p);
+        static Node<T>* find (unsigned int k, Node<T>* p);
         //static Node<T>* remove_all(Node<T>* p);
 
         unsigned int return_key() {   return key; }
@@ -126,7 +126,7 @@ Node<T>* Node<T>::remove_min (Node<T>* p)
 
 
 template <class T> 
-void Node<T>::copy(Node<T>* p, Node<T>* q)
+void Node<T>::copy(Node<T>* &p, Node<T>* q)
 {
     if (!q) return;
     copy(p, q->left);
@@ -163,10 +163,10 @@ Node<T>* Node<T>::remove(unsigned int k, Node<T>* p)
 }
 
 template <class T>
-T Node<T>::find(unsigned int k, Node<T>* p)
+Node<T>* Node<T>::find(unsigned int k, Node<T>* p)
 {
     if (!p) return 0;
-    if (k == p->key) return p->value;
+    if (k == p->key) return p;
     if (k < p->key) return find(k, p->left);
     return find(k, p->right);
 }
