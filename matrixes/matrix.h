@@ -5,6 +5,7 @@
 
 #include "rational.h"
 #include "exception.h"
+#include "matr.h"
 #include "vector.h"
 #include "node.h"
 
