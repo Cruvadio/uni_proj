@@ -78,18 +78,9 @@ class Vector : public MathObject
         void write (const char* file_name) const;
         ~Vector();
 
-        Rational_number operator[](unsigned int index) const
-        {
-            //if (index > size || index < 0??) throw Exception();
-            Node<Rational_number>* p = Node<Rational_number>::find(index, node);
-            return p ? p->value : 0;
-        }
+        Rational_number operator[](unsigned int index) const;
 
-        Iterator operator() (unsigned int index)
-        {
-            return Iterator(*this, index);
-        }
-
+        Iterator operator() (unsigned int index);
                 
         operator bool() const;
 

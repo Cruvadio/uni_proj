@@ -20,7 +20,7 @@ Vector::Vector(unsigned int size, States state) : node(0)
             (*this)(i)= 1;
         break;
     default:
-        //throw Exception();
+        throw WrongArgument();
         break;
     }
 }
@@ -36,7 +36,7 @@ Vector::Vector(const Vector& vec)
 Vector::Vector(const char* file_name) : node(0)
 {
     FILE* f = fopen(file_name, "r");
-    //if (f == NULL) //throw Exception();
+    if (f == NULL) throw OpenFileError(file_name);
    /* 
     while(true)
     {
@@ -72,6 +72,7 @@ Rational_number Vector::Iterator::operator= (const Rational_number& num)
     }
     return num;
 }
+
 
 Rational_number Vector::Iterator::operator+= (const Rational_number& num)
 {
@@ -232,6 +233,14 @@ Vector::operator bool() const
 //
 
 
+Vector::Iterator Vector::operator()(unsigned int index)
+{
+    if (index >= size) throw OutOfRangeVector(*this, index);
+
+    return Iterator(*this, index);
+}
+
+
 Vector Vector::operator=(const Vector& rv)
 {
     size = rv.size;
@@ -248,7 +257,7 @@ Vector Vector::operator=(const Vector& rv)
 
 Vector Vector::operator+(const Vector& rv) const
 {
-    //if (size != rv.size) throw Exception();
+    if (size != rv.size) throw WrongVectorSize("+", *this, rv);
     Vector res(*this);
 
     calculations(res, rv.node, '+');
