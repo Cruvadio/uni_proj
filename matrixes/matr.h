@@ -35,7 +35,7 @@ struct Matrix_col_coord
     unsigned int col;
 };
 
-class Matrix : public MathObject
+class Matrix
 {
     Node<Vector> *node;
     unsigned int rows;
@@ -43,17 +43,20 @@ class Matrix : public MathObject
     
     void make_vertical_vector(Vector& vec, Node<Vector>* p, unsigned int col) const;
     void multiply (Matrix& mtr, const Matrix& rv, Node<Vector>* p) const;
+    void multiply(Matrix& mtr, const Vector& vec, unsigned int row, Node<Vector>* p) const;
+    void calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* p, char op) const;
+
+    void power (Matrix& mtr, Node<Vector>* p) const;
     class Iterator_Vec
     {
         friend class Matrix;
         Matrix& master;
-        unsigned int coord;
-        Coord_type type;      
+        unsigned int coord;    
         
         Vector& provide();
         void remove();
-        Iterator_Vec(Matrix& a_master, unsigned int a_coord, Coord_type a_type) 
-                    : master(a_master), coord(a_coord), type(a_type) {}
+        Iterator_Vec(Matrix& a_master, unsigned int a_coord) 
+                    : master(a_master), coord(a_coord) {}
         
         public:
         operator Vector();
@@ -62,7 +65,6 @@ class Matrix : public MathObject
         Vector operator-= (const Vector& vec);
     };
 
-    void copy(Node<Vector>* p);
 
     Iterator_Vec operator()(unsigned int coord);
     
@@ -121,6 +123,14 @@ class Matrix : public MathObject
         Matrix operator^(int power) const;
         Matrix operator*(const Matrix& mtr) const;
 
+        friend Matrix operator* (const Matrix& lv, const Rational_number& rv);
+        friend Matrix operator* (const Rational_number& lv, const Matrix& rv);
+        friend Matrix operator/ (const Matrix& lv, const Rational_number& rv);
+
+        Matrix operator*= (const Rational_number& rat);
+        Matrix operator/= (const Rational_number& rat);
+
+    
         Matrix operator+ (const Matrix& rv) const;
         Matrix operator- (const Matrix& rv) const;
 
