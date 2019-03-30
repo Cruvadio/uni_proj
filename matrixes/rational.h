@@ -13,7 +13,9 @@ class Rational_number
     uint32_t denominator;
     int sign;
 
-
+    //
+    // Great common devisor for cannonical
+    //
     unsigned int gcd (unsigned int a, unsigned int b)
     {
         return (b == 0) ? a : gcd(b, a%b);
@@ -27,14 +29,15 @@ class Rational_number
         Rational_number(const char* ratio);
         Rational_number(const char* num, const char* denom);
     
-        Rational_number(const uint32_t num, const uint32_t denom) : numerator(num), denominator(denom), sign(1) {}
+
+        Rational_number(const uint32_t num, const uint32_t denom);
         Rational_number(const int num);
         Rational_number(const short num);
         Rational_number(const long num);
 
         Rational_number(const unsigned int num) : numerator(num), denominator(1), sign(1) {}
         Rational_number(const unsigned short num) : numerator(num), denominator(1), sign(1) {}
-        Rational_number(const unsigned long num) : numerator(num), denominator(1), sign(1) {}
+        Rational_number(const unsigned long num);
 
         Rational_number& operator=(const Rational_number& rv);
 

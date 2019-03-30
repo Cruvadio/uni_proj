@@ -6,7 +6,25 @@
 #include <climits>
 #include <cstdio>
 
+//
+// ---------------------------CONSTRUCTORS-----------------------------------
+//
 
+Rational_number::Rational_number (uint32_t num, uint32_t denom)
+{
+    if (!denom) throw Zerodivide();
+    numerator = num;
+    denominator = denom;
+    sign = 1;
+}
+
+Rational_number::Rational_number(unsigned long num)
+{
+    if (num > UINT32_MAX) throw Overflow();
+    numerator = num;
+    denominator = 1;
+    sign = 1;
+}
 Rational_number::Rational_number (const int num)
 {
     if (num < 0) 
@@ -144,6 +162,13 @@ Rational_number::Rational_number (const Rational_number & ratio)
     if (!denominator) throw Zerodivide();
     sign = ratio.sign;
 }
+
+
+
+//
+//  --------------------------------OPERATORS----------------------------------
+//
+
 
 Rational_number& Rational_number::operator=(const Rational_number& rv)
 {
@@ -330,6 +355,14 @@ Rational_number Rational_number::operator--(int)
     return old;
 }
 
+
+
+//
+// -----------------------------------OTHER------------------------------
+//
+
+
+
 Rational_number Rational_number::floor ()
 {
     return get_number_part();
@@ -395,6 +428,12 @@ void Rational_number::make_canonical ()
     numerator /= c;
     denominator /= c;
 }
+
+//
+// -----------------------------------------CASTING OPERATORS-----------------------------------------
+//
+
+
 Rational_number::operator int()
 {
     Rational_number rat = get_number_part();
@@ -423,6 +462,11 @@ Rational_number::operator double()
 {
     return (double) numerator/ (double) denominator;
 }
+
+
+//
+// ----------------------------------------DESTRUCTOR-------------------------------
+//
 
 Rational_number::~Rational_number()
 {
