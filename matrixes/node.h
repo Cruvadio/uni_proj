@@ -37,6 +37,12 @@ template <class T> class Node
         Node<T>* return_right(){    return right; }
 
 };
+
+//
+//  ---------------------------------------PRIVATE METHODS--------------------------------
+//
+
+
 template<class T> 
 unsigned short Node<T>::return_height (Node<T>* p)
 {
@@ -95,20 +101,6 @@ Node<T>* Node<T>::balance_tree(Node<T>* p)
 }
 
 template <class T> 
-Node<T>* Node<T>::insert(unsigned int k,Node<T>* p, const T& value)
-{
-    if (!p) return new Node<T>(k, value);
-    if ( k < p->key )
-        p->left = insert(k, p->left, value);
-    else if (k > p->key)
-        p->right = insert(k, p->right, value);
-    else
-        p->value = value;
-
-    return balance_tree(p);
-}
-
-template <class T> 
 Node<T>* Node<T>::find_min (Node<T>* p)
 {
     if (!p->left && !p->right) return p;
@@ -124,6 +116,25 @@ Node<T>* Node<T>::remove_min (Node<T>* p)
     return balance_tree(p);
 }
 
+
+//
+//  --------------------------------------PUBLIC METHODS----------------------------------
+//
+
+
+template <class T> 
+Node<T>* Node<T>::insert(unsigned int k,Node<T>* p, const T& value)
+{
+    if (!p) return new Node<T>(k, value);
+    if ( k < p->key )
+        p->left = insert(k, p->left, value);
+    else if (k > p->key)
+        p->right = insert(k, p->right, value);
+    else
+        p->value = value;
+
+    return balance_tree(p);
+}
 
 template <class T> 
 void Node<T>::copy(Node<T>* &p, Node<T>* q)
