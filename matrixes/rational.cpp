@@ -1,10 +1,10 @@
-#include "rational.h"
-#include "exception.h"
 #include <cstring>
 #include <stdint.h>
 #include <cstdlib>
 #include <climits>
 #include <cstdio>
+
+#include "matrix.h"
 
 //
 // ---------------------------CONSTRUCTORS-----------------------------------
@@ -114,7 +114,7 @@ Rational_number::Rational_number (const char* ratio)
             }
             denom[strlen(ratio) - i - 1] = '\0';
 
-            if (!is_number(num) || !is_number(denom)) throw NotARational(ratio);
+            if (!ReadFile::is_number(num) || !ReadFile::is_number(denom)) throw NotANumber(ratio);
 
             numerator = atoi(num);
             denominator = atoi(denom);
@@ -129,26 +129,17 @@ Rational_number::Rational_number (const char* ratio)
     if (sign < 0)
     {
         const char* str = ratio + 1;
-        if (!is_number(str)) throw NotARational(ratio);
+        if (!ReadFile::is_number(str)) throw NotANumber(ratio);
         numerator = atoi(str);
     }
     else numerator = atoi(ratio);
     denominator = 1;
 }
 
-bool Rational_number::is_number (const char* str)
-{
-    for (int i = 0; i < (int)strlen(str); i++)
-    {
-        if (str[i] < '0' || str[i] > '9') return false;
-    }
-    return true;
-}
-
 Rational_number::Rational_number (const char* num,const char* denom)
 {
-    if (!is_number(num)) throw NotARational (num);
-    if (!is_number(denom)) throw NotARational(denom);
+    if (!ReadFile::is_number(num)) throw NotANumber (num);
+    if (!ReadFile::is_number(denom)) throw NotANumber(denom);
     numerator = atoi(num);
     denominator = atoi(denom);
     sign = 1;
