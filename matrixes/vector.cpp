@@ -1,7 +1,8 @@
-#include "matrix.h"
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include "matrix.h"
+
 
 //
 // ---------------------------------------CONSTRUCTORS------------------------------------
@@ -36,24 +37,8 @@ Vector::Vector(const Vector& vec)
 Vector::Vector(const char* file_name) : node(0)
 {
     FILE* f = fopen(file_name, "r");
-    if (f == NULL) throw OpenFileError(file_name);
-   /* 
-    while(true)
-    {
-        int err = -1;
-        char* str = read_str(f, err);
-        if (err || str == NULL) 
-        {
-            if (str != NULL)
-                free(str);
-            break;
-        }
-        
-
-
-        
-    }
-    */
+    if (f == NULL) throw OpenFileError(file_name); 
+    ReadFile::read_vector_file(*this, f);
     fclose(f);
 }
 
@@ -223,14 +208,15 @@ void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Ra
     dot_product(rat, p->return_left(), q);
     dot_product(rat, p->return_right(), q);
 }
-Vector::operator bool() const
-{
-    return node? true : false;
-}
 
 //
 // -------------------------------------OPERATORS--------------------------------
 //
+
+Vector::operator bool() const
+{
+    return node? true : false;
+}
 
 
 Vector::Iterator Vector::operator()(unsigned int index)
@@ -240,6 +226,13 @@ Vector::Iterator Vector::operator()(unsigned int index)
     return Iterator(*this, index);
 }
 
+Rational_number Vector::operator[] (unsigned int index) const
+{
+    if (index >= size) throw OutOfRangeVector(*this, index);
+    
+    Node<Rational_number>* p = Node<Rational_number>::find(index, node);
+    return p ? p->value : 0;
+}
 
 Vector Vector::operator=(const Vector& rv)
 {
@@ -268,7 +261,7 @@ Vector Vector::operator+(const Vector& rv) const
 
 Vector Vector::operator-(const Vector& rv) const
 {
-    //if (size != rv.size) throw Exception();
+    if (size != rv.size) throw WrongVectorSize("-", *this, rv);
     
     Vector res(*this);
 
@@ -279,7 +272,7 @@ Vector Vector::operator-(const Vector& rv) const
 
 Vector Vector::operator-=(const Vector& rv)
 {
-    //if (size != rv.size) throw Exception();
+    if (size != rv.size) throw WrongVectorSize("-=", *this, rv);
     
     *this = *this - rv;
 
@@ -288,7 +281,8 @@ Vector Vector::operator-=(const Vector& rv)
 
 Vector Vector::operator+=(const Vector& rv)
 {
-    //if (size != rv.size) throw Exception();
+    if (size != rv.size) throw WrongVectorSize("+=", *this, rv);
+
     
     *this = *this + rv;
 
@@ -334,7 +328,7 @@ Vector operator* (const Rational_number& lv,const Vector& rv)
 
 Rational_number Vector::operator*(const Vector& rv) const
 {
-    //if (size != rv.size) throw Exception();
+    if (size != rv.size) throw WrongVectorSize("*", *this, rv);
     Rational_number res;
     
     dot_product(res, node, rv.node);
@@ -390,58 +384,13 @@ void Vector::write(const char* file_name) const
 {
     FILE* f = fopen(file_name, "w");
 
-    //if (f == NULL) throw Exception();
+    if (f == NULL) throw OpenFileError(file_name);
     fprintf(f, "vector %u\n", size);
     
     write_node(f, node);
     
     fclose(f);
 
-}
-
-char* MathObject::read_str(FILE* file,int &err)
-{
-    int i = 0;
-    char* str = NULL;
-    do
-    {
-        int ch = fgetc(file);
-
-        char* temp =(char*) realloc(str,sizeof(char)*(i + 1));
-        if (temp == NULL)
-        {
-            free(str);
-            //throw Exception();
-            break;
-        }
-        str = temp;
-        if (ch == '#')
-        {
-            while(ch != '\n' || ch != EOF) ch = fgetc(file);
-            str[i] = '\0';
-            err = (ch == EOF) ? -1 : 0;
-            return str;
-        }
-
-        if (ch == EOF)
-        {
-            str[i] = '\0';
-            err = -1;
-            return str;
-        }
-        if (ch == '\n')
-        {
-            err = 0;
-            str[i] = '\0';
-            return str;
-        }
-        else
-            str[i] =(char)ch;
-        i++;
-    }
-    while (true);
-
-    return NULL;
 }
 
 //
