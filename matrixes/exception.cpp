@@ -1,5 +1,4 @@
-#include "exception.h"
-#include "rational.h"
+#include "matrix.h"
 #include <cstdio>
 #include <cstring>
 
@@ -71,9 +70,9 @@ WrongLexeme::~WrongLexeme()
     if (lexeme) delete[] lexeme;
 }
 
-void NotARational::debug_print()
+void NotANumber::debug_print()
 {
-    fprintf(stderr, "'%s' is not a rational number!\n", lexeme);
+    fprintf(stderr, "'%s' is not a number!\n", lexeme);
 }
 
 Exception::~Exception()
@@ -107,12 +106,12 @@ void WrongMatrixSize::debug_print()
         fprintf(stderr, "Rows and columns must be equal.\n");
     }
 
-    else if (!strcmp(op, "^")) fprintf (stderr, "Matrix must have equal rows and columns\n");
+    else if (!strcmp(op, "^")) fprintf (stderr, "Matrix must have equal rows and columns.\n");
     else
     {
         fprintf(stderr, "Can't make '%s'-operation because size of left and right matrix are incorrect!\n",op);
         if (!strcmp(op, "*"))
-            fprintf(stderr, "Columns of left matrix and rows of right matrix must be equal");
+            fprintf(stderr, "Columns of left matrix and rows of right matrix must be equal.\n");
         else
             fprintf(stderr, "Matrxes must have equal sizes.\n");
     }
@@ -139,4 +138,34 @@ void OutOfRangeMatrix::debug_print()
     fprintf(stderr, "'%u' is out of range of \n%s", index, str);
 
     delete[] str;
+}
+
+//
+// -----------------------------------WRONG_ARGUMENT------------------------------------------
+//
+
+void WrongArgument::debug_print()
+{
+    fprintf (stderr, "Wrong argument met in the constructor!\n");
+}
+
+//
+// -----------------------------------OPEN FILE ERROR-----------------------------------------
+//
+
+OpenFileError::OpenFileError(const char* file)
+{
+    file_name = new char [strlen(file) + 1];
+
+    strcpy(file_name, file);
+}
+
+void OpenFileError::debug_print()
+{
+    fprintf(stderr, "Can't open file '%s'", file_name);
+}
+
+OpenFileError::~OpenFileError()
+{
+    delete[] file_name;
 }
