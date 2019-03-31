@@ -1,10 +1,6 @@
-#include "matr.h"
-#include "rational.h"
-#include "node.h"
-#include "vector.h"
-#include "exception.h"
 #include <cstdio>
 #include <cstring>
+#include "matrix.h"
 
 
 //
@@ -27,7 +23,7 @@ Matrix::Matrix(unsigned int rows, unsigned int cols, States state)
             }
             break;
         case Elementary:
-            //TODO Exception:
+            if (rows != cols) throw WrongMatrixSize();
             for (unsigned int i = 0; i < rows; i++)
             {
                 Vector vec(cols);
@@ -36,7 +32,7 @@ Matrix::Matrix(unsigned int rows, unsigned int cols, States state)
             }
             break;
         default:
-            //TODO Exception
+            throw WrongArgument();
             break;
     }
 }
@@ -74,9 +70,19 @@ Matrix::Matrix(const Vector& vec, Orientation orient)
             (*this)(0) = vec;
             break;
         default:
-            //TODO Exception
+            throw WrongArgument();
             break;
     }
+}
+
+Matrix::Matrix(const char* file_name) : node(0)
+{
+    FILE* file = fopen(file_name, "r");
+    if (file == NULL) throw OpenFileError(file_name);
+
+    ReadFile::read_matrix_file(*this, file);
+
+    fclose(file);
 }
 
 //
@@ -222,7 +228,7 @@ void Matrix::Iterator_Rat::remove()
 
 Vector Matrix::Iterator_Vec::operator= (const Vector& rv)
 {
-    //TODO Exception
+    if (rv.size != master.cols) throw WrongVectorSize ("=", provide(), rv);
     if (!rv) remove();
     else
     {
@@ -234,7 +240,7 @@ Vector Matrix::Iterator_Vec::operator= (const Vector& rv)
 
 Vector Matrix::Iterator_Vec::operator+= (const Vector& rv)
 {
-    //TODO Exception
+    if (rv.size != master.cols) throw WrongVectorSize ("+=", provide(), rv);
     Vector &vec = provide();
     
     vec+=rv;
@@ -247,7 +253,7 @@ Vector Matrix::Iterator_Vec::operator+= (const Vector& rv)
 
 Vector Matrix::Iterator_Vec::operator-= (const Vector& rv)
 {
-    //TODO Exception
+    if (rv.size != master.cols) throw WrongVectorSize ("-=", provide(), rv);
     Vector &vec = provide();
     
     vec-=rv;
@@ -296,7 +302,9 @@ Matrix Matrix::operator=(const Matrix& rv)
 
 Rational_number Matrix::operator[] (Matrix_coords coords) const
 {
-    //TODO Exception
+    if (coords.col >= cols) throw OutOfRangeMatrix(*this, coords.col);
+    if (coords.row >= rows) throw OutOfRangeMatrix(*this, coords.row);
+
     Node<Vector>* f = Node<Vector>::find(coords.row, node);
     if (!f) return 0;
     Vector vec = f->value;
@@ -307,7 +315,8 @@ Rational_number Matrix::operator[] (Matrix_coords coords) const
 
 Vector Matrix::operator[](Matrix_col_coord coord) const
 {
-    //TODO Exception
+    if (coord.col >= cols) throw OutOfRangeMatrix(*this, coord.col);
+
     Vector vec(rows);
     make_vertical_vector(vec, node, coord.col);
     
@@ -316,10 +325,10 @@ Vector Matrix::operator[](Matrix_col_coord coord) const
 
 Vector Matrix::operator[](Matrix_row_coord coord) const
 {
-    //TODO Exception
+    if (coord.row >= rows) throw OutOfRangeMatrix(*this, coord.row);
     
     Node<Vector>* f = Node<Vector>::find(coord.row, node);
-    if (!f) return Vector(rows);
+    if (!f) return Vector(cols);
     Vector vec = f->value;
 
     return vec;
@@ -342,8 +351,9 @@ Matrix Matrix::operator~() const
 
 Matrix Matrix::operator*(const Matrix& rv) const
 {
-    // TODO Excepetion 
-    Matrix mtr(*this);
+    if (cols != rv.rows) throw WrongMatrixSize("*", *this, rv);
+
+    Matrix mtr(rows, rv.cols);
 
     multiply(mtr, ~rv, node);
 
@@ -361,11 +371,13 @@ void Matrix::power(Vector& vec,const Vector& vec, Node<Vector>* p) const
 */
 Matrix Matrix::operator^(int pow) const
 {
-    // TODO Exception
+    
+    if (rows != cols) throw WrongMatrixSize("^", *this);
+
     if (!pow) return Matrix(rows, cols, Elementary);
     if (pow == 1) return *this;
 
-
+    /*
     Matrix mtr(*this);
         for (unsigned int i = 0;i < rows; i++)
         {
@@ -383,13 +395,19 @@ Matrix Matrix::operator^(int pow) const
                 mtr(i) = vec;
             }
         }
+        */
+    // Не знаю как выделять матрицу только один раз
+    Matrix mtr (*this);
+    for (int i = 1; i < pow; i++)
+        mtr *= mtr;
     return mtr;
 }
 
 
 Matrix Matrix::operator+(const Matrix& rv) const
 {
-    //TODO Exception
+    if (cols != rv.cols || rows != rv.rows) throw WrongMatrixSize("+", *this, rv);
+
     Matrix mtr(*this);
     
     calculations(mtr, rv.node, '+');
@@ -399,7 +417,8 @@ Matrix Matrix::operator+(const Matrix& rv) const
 
 Matrix Matrix::operator-(const Matrix& rv) const
 {
-    //TODO Exception
+    if (cols != rv.cols || rows != rv.rows) throw WrongMatrixSize("-", *this, rv);
+
     Matrix mtr(*this);
     
     calculations(mtr, rv.node, '-');
@@ -409,27 +428,25 @@ Matrix Matrix::operator-(const Matrix& rv) const
 
 Matrix Matrix::operator+=(const Matrix& rv)
 {
-    //TODO Exception
     *this = *this + rv;
     return *this;
 }
 
 Matrix Matrix::operator-=(const Matrix& rv)
 {
-    //TODO Exception
     *this = *this - rv;
     return *this;
 }
 
 Matrix Matrix::operator*=(const Matrix& rv)
 {
-    //TODO Exception
     *this = *this * rv;
     return *this;
 }
 Matrix::Iterator_Rat Matrix::operator()(unsigned int row, unsigned int col)
 {
-    //TODO Exception
+    if (row >= rows) throw OutOfRangeMatrix(*this, row);
+    if (col >= cols) throw OutOfRangeMatrix(*this, col);
     
     return Iterator_Rat(*this, row, col);
 }
@@ -437,7 +454,9 @@ Matrix::Iterator_Rat Matrix::operator()(unsigned int row, unsigned int col)
 
 Matrix::Iterator_Vec Matrix::operator()(unsigned int row)
 {
-   return Iterator_Vec(*this, row);
+    if (row >= rows) throw OutOfRangeMatrix(*this, row);
+
+    return Iterator_Vec(*this, row);
 }
 
 Matrix operator* (const Matrix& lv,const Rational_number& rv)
@@ -473,6 +492,20 @@ Matrix Matrix::operator/= (const Rational_number& rv)
 {
     *this = *this / rv;
     return *this;
+}
+
+Vector operator* (const Vector& lv, const Matrix& rv)
+{
+    if (lv.get_size() != rv.rows) throw WrongVectorSize("* with Matrix", lv);
+    Vector vec(lv);
+
+    for (unsigned int i = 0; i < vec.get_size(); i++)
+    {
+        Matrix_col_coord col = {i};
+        vec(i) = lv * rv[col];
+    }
+
+    return vec;
 }
 
 //
@@ -569,7 +602,8 @@ void Matrix::write_node(FILE* file, Node<Vector>* p) const
 void Matrix::write(const char* file_name) const
 {
     FILE* file = fopen(file_name, "w");
-    //TODO Exception
+    
+    if (file == NULL) throw OpenFileError(file_name);
     
     fprintf(file, "matrix %u %u\n", rows, cols);
     
