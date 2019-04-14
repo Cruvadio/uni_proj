@@ -28,13 +28,6 @@ class ReadFile
         static void read_matrix_file(Matrix& mtr, FILE* file);
 };
 
-class MathObject
-{
-    public:
-        virtual char* to_string()const = 0;
-        virtual void write(const char* file_name)const = 0;
-};
-
 enum States
 {
     Zeros = 0,
@@ -58,16 +51,22 @@ struct Matrix_coords
 {
     unsigned int row;
     unsigned int col;
+
+    Matrix_coords(unsigned int r, unsigned int c) : row (r), col(c) {}
 };
 
 struct Matrix_row_coord
 {
     unsigned int row;
+
+    Matrix_row_coord(unsigned int coord) : row (coord) {}
 };
 
 struct Matrix_col_coord
 {
     unsigned int col;
+
+    Matrix_col_coord(unsigned int coord) : col (coord) {}
 };
 
 //
@@ -94,7 +93,7 @@ class Rational_number
         Rational_number(const char* ratio);
         Rational_number(const char* num, const char* denom);
     
-
+        
         Rational_number(const uint32_t num, const uint32_t denom);
         Rational_number(const int num);
         Rational_number(const short num);
@@ -103,6 +102,7 @@ class Rational_number
         Rational_number(const unsigned int num) : numerator(num), denominator(1), sign(1) {}
         Rational_number(const unsigned short num) : numerator(num), denominator(1), sign(1) {}
         Rational_number(const unsigned long num);
+        Rational_number(double num);
 
         Rational_number& operator=(const Rational_number& rv);
 
@@ -159,7 +159,7 @@ class Rational_number
 // ----------------------------------------CLASS VECTOR----------------------------------------------
 //
 
-class Vector : public MathObject
+class Vector
 {
     Node<Rational_number>* node; 
     unsigned int size;
@@ -254,34 +254,39 @@ class Matrix
     void calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* p, char op) const;
 
     void power (Matrix& mtr, Node<Vector>* p) const;
-    class Iterator_Vec
-    {
-        friend class Matrix;
-        Matrix& master;
-        unsigned int coord;    
-        
-        Vector& provide();
-        void remove();
-        Iterator_Vec(Matrix& a_master, unsigned int a_coord) 
-                    : master(a_master), coord(a_coord) {}
-        
-        public:
-        operator Vector();
-        Vector operator= (const Vector& vec);
-        Vector operator+= (const Vector& vec);
-        Vector operator-= (const Vector& vec);
-    };
-
-
-    Iterator_Vec operator()(unsigned int coord);
     
+
+
+        
     void calculations(Matrix& mtr, Node<Vector>* p, char op) const;
 
     void write_node(FILE* file, Node<Vector>* p) const;
     void write_node(FILE* file, Node<Rational_number>* p, unsigned int row) const;
 
     public:
-        
+        class Iterator_Vec
+        {
+            friend class Matrix;
+            Matrix& master;
+            unsigned int coord;
+            Coord_type type;
+            
+            Vector& provide();
+            void remove();
+            Iterator_Vec(Matrix& a_master, unsigned int a_coord, Coord_type a_type) 
+                        : master(a_master), coord(a_coord), type(a_type) {}
+            
+            void calculations(Matrix& mtr, Node<Rational_number>* p, char op);
+            void calculations(Matrix& mtr, const Rational_number& rat, Node<Vector>* p, char op);
+
+            public:
+            operator Vector();
+            Vector operator= (const Vector& vec);
+            Vector operator+= (const Vector& vec);
+            Vector operator-= (const Vector& vec);
+            Vector operator*= (const Rational_number& rat);
+            Vector operator/= (const Rational_number& rat);
+        };
         class Iterator_Rat
         {
             friend class Matrix;
@@ -349,6 +354,8 @@ class Matrix
         Matrix operator*= (const Matrix& rv);
         
         Iterator_Rat operator()(unsigned int row, unsigned int col);
+        Iterator_Vec operator()(Matrix_row_coord coord);
+        Iterator_Vec operator()(Matrix_col_coord coord);
         Rational_number operator[](Matrix_coords coords) const;
         Vector operator[](Matrix_row_coord row) const;
         Vector operator[](Matrix_col_coord col) const;

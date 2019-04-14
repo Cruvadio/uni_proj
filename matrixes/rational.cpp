@@ -25,6 +25,19 @@ Rational_number::Rational_number(unsigned long num)
     denominator = 1;
     sign = 1;
 }
+
+Rational_number::Rational_number (double num)
+{
+    if (num < 0)
+        sign = -1;
+    else sign = 1;
+    numerator = (uint32_t)(num * 10000);
+
+    denominator = 10000;
+
+    make_canonical();
+}
+
 Rational_number::Rational_number (const int num)
 {
     if (num < 0) 

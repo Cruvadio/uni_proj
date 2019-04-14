@@ -9,7 +9,7 @@ test: main.o libmatrix.a
 libmatrix.a: exception.o matrix.o rational.o readfile.o vector.o
 	ar crv $@ $^
 	ranlib $@
-	rm $^
+	#rm $^
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $^

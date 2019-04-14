@@ -19,7 +19,7 @@ Matrix::Matrix(unsigned int rows, unsigned int cols, States state)
         case Ones:
             for (unsigned int i = 0; i < rows; i++)
             {
-                (*this)(i) = Vector(cols, Ones);
+                (*this)(Matrix_row_coord(i)) = Vector(cols, Ones);
             }
             break;
         case Elementary:
@@ -28,7 +28,7 @@ Matrix::Matrix(unsigned int rows, unsigned int cols, States state)
             {
                 Vector vec(cols);
                 vec(i) = 1;
-                (*this)(i) = vec;
+                (*this)(Matrix_row_coord(i)) = vec;
             }
             break;
         default:
@@ -60,14 +60,14 @@ Matrix::Matrix(const Vector& vec, Orientation orient)
                 Vector one(1);
                 one(0) = vec[i];
 
-                (*this)(i) = vec;
+                (*this)(Matrix_row_coord(i)) = vec;
             }
             break;
         case Horizontal:
             rows = 1;
             cols = vec.size;
 
-            (*this)(0) = vec;
+            (*this)(Matrix_row_coord(0)) = vec;
             break;
         default:
             throw WrongArgument();
@@ -94,12 +94,6 @@ Matrix::Iterator_Rat::operator Rational_number()
     Vector vec = provide();
 
     return vec[col];
-}
-
-Matrix::Iterator_Vec::operator Vector()
-{
-    Vector vec = provide();
-    return vec;
 }
 
 Rational_number Matrix::Iterator_Rat::operator= (const Rational_number& rat)
@@ -228,40 +222,172 @@ void Matrix::Iterator_Rat::remove()
 
 Vector Matrix::Iterator_Vec::operator= (const Vector& rv)
 {
-    if (rv.size != master.cols) throw WrongVectorSize ("=", provide(), rv);
-    if (!rv) remove();
+    if ((rv.size != master.cols && type == Row) || (rv.size != master.rows && type == Col))
+        throw WrongVectorSize ("=",provide(), rv);
+
+    if (type == Row)
+    {
+        if (!rv) remove();
+        else
+        {
+            Vector& vec = provide();
+            vec = rv;
+        }
+    }
     else
     {
-        Vector& vec = provide();
-        vec = rv;
+        for (unsigned int i = 0; i < master.rows; i++)
+        {
+            master(i, coord) = rv[i];
+           /* if (!master[Matrix_row_coord(i)])
+            {
+                master.node = Node<Vector>::remove(i, master.node);
+            }*/
+        }
     }
     return rv;
 }
 
+Matrix::Iterator_Vec::operator Vector()
+{
+    if (type == Row)
+    {
+        Vector vec = provide();
+        return vec;
+    }
+    Vector vec(master.rows);
+    master.make_vertical_vector(vec, master.node, coord);
+
+    return vec;
+}
+
 Vector Matrix::Iterator_Vec::operator+= (const Vector& rv)
 {
-    if (rv.size != master.cols) throw WrongVectorSize ("+=", provide(), rv);
-    Vector &vec = provide();
+    if ((rv.size != master.cols && type == Row) || (rv.size != master.rows && type == Col))
+        throw WrongVectorSize ("+=",provide(), rv);
+
+    if (type == Row)
+    {
+        Vector &vec = provide();
     
-    vec+=rv;
+        vec+=rv;
 
-    Vector res = vec;
+        Vector res = vec;
 
-    if (!vec) remove();
+        if (!vec) remove();
+        return res;
+    }
+
+    calculations(master, rv.node, '+');
+        
+    Vector res = master[Matrix_col_coord(coord)];
     return res;
 }
 
 Vector Matrix::Iterator_Vec::operator-= (const Vector& rv)
 {
-    if (rv.size != master.cols) throw WrongVectorSize ("-=", provide(), rv);
-    Vector &vec = provide();
+    if ((rv.size != master.cols && type == Row) || (rv.size != master.rows && type == Col))
+        throw WrongVectorSize ("-=",provide(), rv);
+
+    if (type == Row)
+    {
+        Vector &vec = provide();
     
-    vec-=rv;
+        vec-=rv;
 
-    Vector res = vec;
+        Vector res = vec;
 
-    if (!vec) remove();
+        if (!vec) remove();
+        return res;
+    }
+    
+    calculations(master, rv.node, '-');
+
+    Vector res = master[Matrix_col_coord(coord)];
     return res;
+
+}
+
+Vector Matrix::Iterator_Vec::operator*=(const Rational_number& rv)
+{
+    if (type == Row)
+    {
+        Vector& vec = provide();
+        
+        vec *= rv;
+
+        Vector res = vec;
+
+        return res;
+    }
+
+    calculations(master, rv, master.node, '*');
+
+    Vector res = master[Matrix_col_coord(coord)];
+    
+    return res;
+}
+
+Vector Matrix::Iterator_Vec::operator/=(const Rational_number& rv)
+{
+    if (type == Row)
+    {
+        Vector& vec = provide();
+        
+        vec /= rv;
+
+        Vector res = vec;
+
+        return res;
+    }
+
+    calculations(master, rv, master.node, '/');
+    Vector res = master[Matrix_col_coord(coord)];
+    
+    return res;
+}
+
+void Matrix::Iterator_Vec::calculations(Matrix& mtr, Node<Rational_number>* p, char op)
+{
+    if (!p) return;
+
+    switch (op)
+    {
+        case '+':
+            mtr(p->return_key(), coord) += p->value;
+            break;
+        case '-':
+            mtr(p->return_key(), coord) -= p->value;
+            break;
+    }
+
+    
+    calculations(mtr, p->return_left(), op);
+    calculations(mtr, p->return_right(), op);
+
+   /* if (mtr[Matrix_row_coord(p->return_key())])
+        mtr.node = Node<Vector>::remove(p->return_key(), mtr.node);*/
+}
+
+void Matrix::Iterator_Vec::calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* p, char op)
+{
+    if (!p) return;
+
+    switch (op)
+    {
+        case '*':
+            mtr(p->return_key(), coord) *= rat;
+            break;
+        case '/':
+            mtr(p->return_key(), coord) /= rat;
+            break;
+    } 
+
+    calculations(mtr,rat, p->return_left(), op);
+    calculations(mtr,rat, p->return_right(), op);
+
+   /* if (rat == 0 && mtr[Matrix_row_coord(p->return_key())])
+        mtr.node = Node<Vector>::remove(p->return_key(), mtr.node);*/
 }
 
 Vector& Matrix::Iterator_Vec::provide()
@@ -377,29 +503,12 @@ Matrix Matrix::operator^(int pow) const
     if (!pow) return Matrix(rows, cols, Elementary);
     if (pow == 1) return *this;
 
-    /*
+
     Matrix mtr(*this);
-        for (unsigned int i = 0;i < rows; i++)
-        {
-            Vector vec(cols);
-            Matrix_row_coord row;
-            row.row = i;
-            for (int p = 1; p < pow; p++)
-            {
-                for (unsigned int j = 0; j < cols; j++)
-                {
-                    Matrix_col_coord col;
-                    col.col = j;
-                    vec(j) = mtr[row] * (*this)[col];
-                }
-                mtr(i) = vec;
-            }
-        }
-        */
-    // Не знаю как выделять матрицу только один раз
-    Matrix mtr (*this);
-    for (int i = 1; i < pow; i++)
-        mtr *= mtr;
+    
+    for (int i = 0; i < pow; i++)
+        mtr *= *this;
+
     return mtr;
 }
 
@@ -452,12 +561,20 @@ Matrix::Iterator_Rat Matrix::operator()(unsigned int row, unsigned int col)
 }
 
 
-Matrix::Iterator_Vec Matrix::operator()(unsigned int row)
+Matrix::Iterator_Vec Matrix::operator()(Matrix_row_coord row)
 {
-    if (row >= rows) throw OutOfRangeMatrix(*this, row);
+    if (row.row >= rows) throw OutOfRangeMatrix(*this, row.row);
 
-    return Iterator_Vec(*this, row);
+    return Iterator_Vec(*this, row.row, Row);
 }
+
+Matrix::Iterator_Vec Matrix::operator()(Matrix_col_coord col)
+{
+    if (col.col >= cols) throw OutOfRangeMatrix(*this, col.col);
+
+    return Iterator_Vec(*this, col.col, Col);
+}
+
 
 Matrix operator* (const Matrix& lv,const Rational_number& rv)
 {
@@ -546,10 +663,10 @@ void Matrix::calculations(Matrix& mtr,const Rational_number& rat, Node<Vector>* 
     switch(op)
     {
         case '*':
-            mtr(p->return_key()) = (Vector)mtr(p->return_key()) * rat;
+            mtr(Matrix_row_coord(p->return_key())) = (Vector)mtr(Matrix_row_coord(p->return_key())) * rat;
             break;
         case '/':
-            mtr(p->return_key()) = (Vector)mtr(p->return_key()) / rat;
+            mtr(Matrix_row_coord(p->return_key())) = (Vector)mtr(Matrix_row_coord(p->return_key())) / rat;
     }
     calculations(mtr, rat, p->return_left(), op);
     calculations(mtr, rat, p->return_right(), op);
@@ -565,10 +682,10 @@ void Matrix::calculations(Matrix& mtr, Node<Vector>* p, char op) const
     switch(op)
     {
         case '+':
-            mtr(p->return_key()) += p->value;
+            mtr(Matrix_row_coord(p->return_key())) += p->value;
             break;
         case '-':
-            mtr(p->return_key()) -= p->value;
+            mtr(Matrix_row_coord(p->return_key())) -= p->value;
             break;
     }
 
@@ -616,8 +733,7 @@ void Matrix::write(const char* file_name) const
 char* Matrix::to_string() const
 {
     char* completed = NULL;
-    Matrix_row_coord coord;
-    coord.row = 0;
+    Matrix_row_coord coord(0);
     char* str = (*this)[coord].to_string();
 
     completed = new char[strlen(str) + 2];
