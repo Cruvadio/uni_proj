@@ -6,6 +6,9 @@ all: test
 test: main.o libmatrix.a
 	$(CC) $(CFLAGS) -o $@ $^
 
+interpretator: interpretator.o libmatrix.a
+	$(CC) $(CFLAGS) -o $@ $^
+
 libmatrix.a: exception.o matrix.o rational.o readfile.o vector.o
 	ar crv $@ $^
 	ranlib $@
