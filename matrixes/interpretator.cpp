@@ -145,6 +145,7 @@ class Scanner
 
     int row;
     int col;
+    stack<Lex> returned;
     
     int look (const string& buf, const char ** list);
 
@@ -174,6 +175,7 @@ class Scanner
         }
 
         Lex get_lex();
+        void return_lex (Lex& lex);
         void get_line();
         ~Scanner( )
         {
@@ -202,11 +204,22 @@ int Scanner::look(const string& buf, const char ** list)
     return 0;
 }
 
+void Scanner::return_lex(Lex& lex)
+{
+    returned.push(lex);
+}
+
 Lex Scanner::get_lex()
 {
     enum state {H, IDENT, NUMBER, FLOAT, RATIONAL, LINE_COMMENT, COMMENT, STRING};
     string buf;
     state CS = H;
+    if (!returned.empty())
+    {
+        Lex l = returned.top();
+        returned.pop();
+        return l;
+    }
     do 
     {
         gc();
@@ -549,10 +562,12 @@ void Parser::ID()
 
 void Parser::PROCESS()
 {
+    gl();
+    if (current_lex.get_type() != LEX_COLON)
+        throw current_lex;
     while(current_lex.get_type() != LEX_FIN)
     {
         OPS();
-        gl();
     }
 }
 
@@ -560,57 +575,64 @@ void Parser::OPS()
 {
     do
     {
-        OP();
         gl();
+        OP();
     }
     while (current_lex.get_type() != LEX_SEMICOLON);
 }
 
 void Parser::OP()
 {
-    gl();
+    //gl();
     if (current_lex.get_type() == LEX_ID)
     {
+        lexes.push(current_lex);
         gl();
         if (current_lex.get_type() == LEX_ASSIGN)
         {
+            lexes.pop();
             gl();
             EXPRESSION();
         }
-        else
-            throw current_lex;
+        else   
+        {
+            scan.return_lex(current_lex);
+            current_lex = lexes.top();
+            lexes.pop();
+            EXPRESSION();
+        }
     }
+    else if (current_lex.get_type() == LEX_INFO)
+    {}
     else
         EXPRESSION();
 }
 
 void Parser::EXPRESSION()
 {
-    do
-    {
-        EXPR();
-        gl();
-    }
+    EXPR();
     while (current_lex.get_type() == LEX_PLUS ||
-           current_lex.get_type() == LEX_MINUS);
+           current_lex.get_type() == LEX_MINUS)
+    {
+        gl();
+        EXPR();
+    }
 }
-
 void Parser::EXPR()
 {
-    do
-    {
-        ACTION();
-        gl();
-    }
+    ACTION();
     while (current_lex.get_type() == LEX_TIMES ||
            current_lex.get_type() == LEX_SLASH ||
-           current_lex.get_type() == LEX_POWER);
+           current_lex.get_type() == LEX_POWER)
+    {
+        gl();
+        ACTION();
+    }
 }
 
 void Parser::ACTION()
 {
     EXPR2();
-    gl();
     if (current_lex.get_type() == LEX_COLON)
     {
         FUNC();
@@ -619,13 +641,15 @@ void Parser::ACTION()
 
 void Parser::EXPR2()
 {
-    gl();
     if (current_lex.get_type() == LEX_LPAREN)
     {
-        OP();
         gl();
-        if (current_lex.get_type() != LEX_RPAREN)
-            throw current_lex;
+        do
+        {
+            OP();
+        }
+        while (current_lex.get_type() != LEX_RPAREN);
+        gl();
     }
     else
         OBJECT();
@@ -648,7 +672,15 @@ void Parser::OBJECT()
             }
         }
     }
-    else if (current_lex.get_type() == NUM)
+    else if (current_lex.get_type() == LEX_NUM)
+    {}
+    else if (current_lex.get_type() == LEX_RATIO_NUM)
+    {}
+    else if (current_lex.get_type() == LEX_FLOAT_NUM)
+    {}
+    else
+        throw current_lex;
+    gl();
 }
 
 int main (int argc, char* argv[])
