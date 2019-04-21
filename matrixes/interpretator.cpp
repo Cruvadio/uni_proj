@@ -1,6 +1,7 @@
 #include <vector>
 #include <cstdio>
 #include <stack>
+#include <queue>
 #include <algorithm>
 #include <string>
 #include <unistd.h>
@@ -145,7 +146,7 @@ class Scanner
 
     int row;
     int col;
-    stack<Lex> returned;
+    queue<Lex> returned;
     
     int look (const string& buf, const char ** list);
 
@@ -216,7 +217,7 @@ Lex Scanner::get_lex()
     state CS = H;
     if (!returned.empty())
     {
-        Lex l = returned.top();
+        Lex l = returned.front();
         returned.pop();
         return l;
     }
@@ -449,6 +450,7 @@ class Parser
     Lex current_lex;
     Scanner scan;
     stack <Lex> lexes;
+    stack <Lex> ops;
 
     void PROGRAM();
     void DECLARATION();
@@ -467,11 +469,13 @@ class Parser
     void FUNC();
 
     void declare (lex_type type, int adress);
+    void check_id();
     void gl()
     {
         current_lex = scan.get_lex();
     }
     public:
+        vector<Lex> poliz;
         Parser(const char* name): scan(name) {}
         void analyse();
 
@@ -659,24 +663,155 @@ void Parser::OBJECT()
 {
     if (current_lex.get_type() == LEX_ID)
     {
-        if (TID[current_lex.get_value()].get_type() == LEX_MATRIX ||
-            TID[current_lex.get_value()].get_type() == LEX_VECTOR)
+        Ident id = TID[current_lex.get_value()];
+        check_id();
+        if (id.get_type() == LEX_MATRIX ||
+            id.get_type() == LEX_VECTOR)
         {
+            lexes.push(current_lex);
             gl();
             if (current_lex.get_type() == LEX_LBRACKET)
             {
+                if (!id.is_assigned())
+                    throw lexes.top();
                 gl();
                 if (current_lex.get_value() != LEX_NUM)
                     throw current_lex;
-                //TODO
-            }
+                if (id.get_type() == LEX_MATRIX)
+                {
+                    int row = ints[current_lex.get_value()];
+                    gl();
+                    if (current_lex.get_type() == LEX_COMA)
+                    {
+                        gl();
+                        if (current_lex.get_value() != LEX_NUM)
+                            throw current_lex;
+                        int col = ints[current_lex.get_value()];
+                        try
+                        {
+                            current_lex = lexes.top();
+                            Matrix mtr = matrixes[id.get_value()];
+                            int adress = add_value(ratios,(Rational_number) mtr(row, col));
+                            Lex lex(LEX_RATIONAL,adress,
+                                    current_lex.get_column(),current_lex.get_row());
+                            ops.push(lex);
+                            poliz.push_back(lex);
+                            lexes.pop();
+                        }
+                        catch (OutOfRangeMatrix & ofr)
+                        {
+                            ofr.debug_print();
+                            cout << "On line: " << current_lex.get_row();
+                            cout << " column: " << current_lex.get_column() << endl;
+                            throw current_lex;
+                        }
+                    }
+                    else
+                        throw current_lex;
+                } // Matrix
+                else
+                {
+                    int coord = ints[current_lex.get_value()];
+                    try
+                    {
+                        current_lex = lexes.top();
+                        int adress = add_value(ratios, vectors[id.get_value()][coord]);
+                        Lex lex(LEX_RATIONAL,adress,current_lex.get_column(),current_lex.get_row());
+                        ops.push(lex);
+                        lexes.pop();
+                        poliz.push_back(lex);
+                    }
+                    catch(OutOfRangeVector& ofr)
+                    {
+                        ofr.debug_print();
+                        cout << "On line: " << current_lex.get_row();
+                        cout << " column: " << current_lex.get_column();
+                        throw current_lex;
+                    }
+                } // Vector
+                
+                gl();
+                if (current_lex.get_type() != LEX_RBRACKET)
+                    throw current_lex;
+            } // Brackets check
+            else
+            {
+                scan.return_lex(current_lex);
+                current_lex = lexes.top();
+                ops.push(Lex(id.get_type(), 
+                             id.get_value(),
+                             current_lex.get_column(),
+                             current_lex.get_row()));
+                lexes.pop();
+                poliz.push_back(current_lex);
+            } // No brackets
+        }// Matrix or Vector
+        else
+        {
+            ops.push(Lex(id.get_type(),
+                         id.get_value(),
+                         current_lex.get_column(),
+                         current_lex.get_row()));
+            poliz.push_back(current_lex);
         }
-    }
+    } // ID
     else if (current_lex.get_type() == LEX_NUM)
-    {}
+    {
+        ops.push(Lex(LEX_INTEGER,
+                     current_lex.get_value(),
+                     current_lex.get_column(),
+                     current_lex.get_row()));
+        poliz.push_back(current_lex);
+    }
     else if (current_lex.get_type() == LEX_RATIO_NUM)
-    {}
+    {
+        ops.push(Lex(LEX_RATIONAL,
+                     current_lex.get_value(),
+                     current_lex.get_column(),
+                     current_lex.get_row()));
+        poliz.push_back(current_lex);
+
+    }
     else if (current_lex.get_type() == LEX_FLOAT_NUM)
+    {
+        ops.push(Lex(LEX_FLOAT,
+                     current_lex.get_value(),
+                     current_lex.get_column(),
+                     current_lex.get_row()));
+        poliz.push_back(current_lex);
+
+    }
+    else
+        throw current_lex;
+    gl();
+}
+
+void Parser::check_id()
+{
+    if (!TID[current_lex.get_value()].is_declared())
+        throw current_lex;
+}
+
+void Parser::FUNC()
+{
+    gl();
+    if (current_lex.get_type() == LEX_READ)
+    {
+
+    }
+    else if (current_lex.get_type() == LEX_WRITE)
+    {
+
+    }
+    else if (current_lex.get_type() == LEX_PRINT)
+    {}
+    else if (current_lex.get_type() == LEX_ROTATE)
+    {}
+    else if (current_lex.get_type() == LEX_COL)
+    {}
+    else if (current_lex.get_type() == LEX_ROW)
+    {}
+    else if (current_lex.get_type() == LEX_MAKE_CAN)
     {}
     else
         throw current_lex;
