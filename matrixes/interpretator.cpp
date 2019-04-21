@@ -795,24 +795,66 @@ void Parser::check_id()
 void Parser::FUNC()
 {
     gl();
-    if (current_lex.get_type() == LEX_READ)
+    if (current_lex.get_type() == LEX_READ ||
+        current_lex.get_type() == LEX_WRITE)
     {
-
-    }
-    else if (current_lex.get_type() == LEX_WRITE)
-    {
-
+        lexes.push(current_lex);
+        gl();
+        if (current_lex.get_type() != LEX_LPAREN)
+            throw current_lex;
+        gl();
+        if (current_lex.get_type() != LEX_STRING)
+            throw current_lex;
+        
+        poliz.push_back(current_lex);
+        poliz.push_back(lexes.top());
+        lexes.pop();
+        gl();
+        if (current_lex.get_type() != LEX_RPAREN)
+            throw current_lex;
+        ops.pop();
     }
     else if (current_lex.get_type() == LEX_PRINT)
-    {}
+    {
+        ops.pop();
+        poliz.push_back(current_lex);
+    }
     else if (current_lex.get_type() == LEX_ROTATE)
-    {}
-    else if (current_lex.get_type() == LEX_COL)
-    {}
-    else if (current_lex.get_type() == LEX_ROW)
-    {}
+    {
+        if (ops.top().get_type() != LEX_MATRIX &&
+            ops.top().get_type() != LEX_VECTOR)
+            throw current_lex;
+        ops.pop();
+        poliz.push_back(current_lex);
+    }
+    else if (current_lex.get_type() == LEX_COL ||
+             current_lex.get_type() == LEX_ROW)
+    {
+        lexes.push(current_lex);
+        if (ops.top().get_type() != LEX_MATRIX)
+            throw current_lex;
+        gl();
+        if (current_lex.get_type() != LEX_LPAREN)
+            throw current_lex;
+        gl();
+        if (current_lex.get_type() != LEX_NUM)
+            throw current_lex;
+        ops.pop();
+        poliz.push_back(current_lex);
+        poliz.push_back(lexes.top());
+        lexes.pop();
+        gl();
+        if (current_lex.get_type() != LEX_RPAREN)
+            throw current_lex;
+    }
     else if (current_lex.get_type() == LEX_MAKE_CAN)
-    {}
+    {
+        if (ops.top().get_type() == LEX_INTEGER ||
+            ops.top().get_type() == LEX_FLOAT)
+            throw current_lex;
+        ops.pop();
+        poliz.push_back(current_lex);
+    }
     else
         throw current_lex;
     gl();
