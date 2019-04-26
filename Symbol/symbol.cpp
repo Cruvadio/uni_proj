@@ -27,7 +27,7 @@ const int rows = (B - A) / DELTA;
 const int cols = (D - C) / DELTA;
 
 int Scale = WIDTH / rows;
-vector<vector<int>> grid(number_of_cells), gr(number_of_cells); 
+vector<vector<int> > grid(number_of_cells), gr(number_of_cells); 
 
 void henon (double &xn, double &yn)
 {
@@ -57,7 +57,7 @@ void interval (int cell, double& x1, double& y1)
 
 vector<bool> used;
 vector<int> order, component;
-vector<vector<int>> components;
+vector<vector<int> > components;
  
 void dfs1 (int v) {
 	used[v] = true;
