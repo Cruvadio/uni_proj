@@ -1,0 +1,15 @@
+declare:
+#
+# HELLO!
+#
+
+/*
+    HELLO!
+   */
+    matrix: a, b, c;
+    float: f1, f2, f_3(0.9999);
+    integer: i(10);
+    rational: number(10/310);
+process:
+    info ("\"Hello world!\"");
+    f1 = 23 + 0.88;

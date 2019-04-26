@@ -21,8 +21,10 @@ double y0 = 0;
 
 void displayMe(void)
 {
+    glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glBegin(GL_POINTS);
+    glColor3f(0,0,0);
         glVertex3f(x0 * 0.5625, y0 * 2, 0.0);
         double x = x0;
         double y = y0;

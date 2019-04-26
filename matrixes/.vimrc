@@ -3,10 +3,7 @@ syntax on
 " Указывать номера строк
 set number
 " Подсветить максимальную ширину строки
-let &colorcolumn=&textwidth
 " Цвет линии - тёмно-серый
-
-set wildmode=longest:list,full
 
 " С/C++ файлы
 " Расставлять отступы в стиле С
