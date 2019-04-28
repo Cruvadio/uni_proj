@@ -3,7 +3,7 @@
 #else
 #include <GL/glut.h>
 #endif
-
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include <iostream>
@@ -18,15 +18,15 @@ using namespace std;
 #define C -0.5
 #define D 0.5
 
-#define K 10
+#define K 100
 
 #define DELTA 0.1
 
 const int number_of_cells = ((B - A) * (D - C))/ (DELTA * DELTA);
-const int rows = (B - A) / DELTA;
-const int cols = (D - C) / DELTA;
+const int cols = (B - A) / DELTA;
+const int rows = (D - C) / DELTA;
 
-int Scale = WIDTH / rows;
+int Scale = WIDTH * 2 / cols ;
 vector<vector<int> > grid(number_of_cells), gr(number_of_cells); 
 
 void henon (double &xn, double &yn)
@@ -42,13 +42,13 @@ void henon (double &xn, double &yn)
 
 int return_cell (double x, double y)
 {
-    return (int)abs((y - D)/DELTA) * ((B - A) / DELTA) + (int)abs((x - A)/DELTA);
+    return (int)abs((y - D)/DELTA) * cols + (int)abs((x - A)/DELTA);
 }
 
 void interval (int cell, double& x1, double& y1)
 {
-    int row = cell / rows;
-    int col = cell % rows;
+    int row = cell / cols;
+    int col = cell % cols;
 
     x1 = A + col * DELTA;
 
@@ -90,11 +90,22 @@ void find_components ()
         if (!used[v])
         {
             dfs2(v);
-            if ((int)component.size() <= 1)
-                continue;
-            components.push_back(component);
+            if ((int)component.size() >= 1)
+            {
+                vector<int> comp = component;
+                components.push_back(comp);
+            }
             component.clear();
         }
+    }
+
+    for (vector<int>comp : components)
+    {
+        for (int i : comp)
+        {
+            cout << i << " ";
+        }
+        cout << endl;
     }
 }
 
@@ -104,10 +115,11 @@ void make_graph()
     {
         double x1, y1;
         interval(i, x1, y1);
+        cout << i << endl;
         for (int k = 0; k < K; k++)
         {
-            double x = x1 + k * (DELTA / K);
-            double y = y1 + k * (DELTA / K);
+            double x = x1 + k / K;
+            double y = y1 + k / K;
 
             henon(x, y);
             
@@ -115,13 +127,17 @@ void make_graph()
                 continue;
 
             int cell = return_cell(x , y);
-
-            if (cell >= number_of_cells || cell < 0) continue;
-
-            grid[i].push_back(cell);
-            gr[cell].push_back(i);
+            cout << cell << " ";
+            
+            if (find(grid[i].begin(), grid[i].end(), cell) != grid[i].end())
+            {
+                grid[i].push_back(cell);
+                gr[cell].push_back(i);
+            }
         }
+        cout << endl;
     }
+
 }
 
 void draw_square (int cell)
@@ -138,16 +154,16 @@ void draw_grid()
     glBegin(GL_LINES);
     
 
-    for (int i = 0; i < rows; i+= Scale)
+    for (int i = 0; i < HEIGHT * 2; i+= Scale)
     {
-        glVertex2f(i, 0);
-        glVertex2f(i, HEIGHT);
+        glVertex2d(0, i);
+        glVertex2d(WIDTH * 2, i);
     }
 
-    for (int i = 0; i < cols; i+= Scale)
+    for (int i = 0; i < WIDTH * 2; i+= Scale)
     {
-        glVertex2f(0, i);
-        glVertex2f(WIDTH, i);
+        glVertex2d(i, 0);
+        glVertex2d(i, HEIGHT * 2);
     }
 
     glEnd();
@@ -158,23 +174,28 @@ void display()
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
-   // draw_grid();
-   /* 
+    //draw_grid(); 
+    
     for (vector<int> comp : components)
         for (int v: comp)
         {
             draw_square(v);
         }
-        */
+    draw_grid();
+    glFlush();
 }
 
 int main (int argc, char* argv[])
-{/*
+{
     grid.resize(number_of_cells);
     gr.resize(number_of_cells);
+    grid.assign(number_of_cells, vector<int>(0));
+    gr.assign(number_of_cells, vector<int>(0));
     make_graph();
     find_components();
-*/
+
+
+    printf("%d\n", Scale);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE);
     glutInitWindowSize(WIDTH, HEIGHT);
@@ -183,7 +204,8 @@ int main (int argc, char* argv[])
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho( - WIDTH, WIDTH, -HEIGHT, HEIGHT, -1.0, 1.0);
+    glOrtho( - WIDTH, WIDTH, HEIGHT, -HEIGHT, -1.0, 1.0);
+    glTranslatef(-WIDTH, -HEIGHT, 0);
     glutDisplayFunc(display);
     glutMainLoop();
 
