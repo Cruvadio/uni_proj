@@ -11,16 +11,16 @@
 using namespace std;
 
 #define WIDTH 1200
-#define HEIGHT 400
+#define HEIGHT 480
 
-#define A -1.5
-#define B 1.5
-#define C -0.5
-#define D 0.5
+#define A -2.5
+#define B 2.5
+#define C -1
+#define D 1
 
 #define K 100
 
-#define DELTA 0.1
+#define DELTA 0.5
 
 const int number_of_cells = ((B - A) * (D - C))/ (DELTA * DELTA);
 const int cols = (B - A) / DELTA;
@@ -90,7 +90,7 @@ void find_components ()
         if (!used[v])
         {
             dfs2(v);
-            if ((int)component.size() >= 1)
+            if ((int)component.size() > 1)
             {
                 vector<int> comp = component;
                 components.push_back(comp);
@@ -118,8 +118,8 @@ void make_graph()
         cout << i << endl;
         for (int k = 0; k < K; k++)
         {
-            double x = x1 + k / K;
-            double y = y1 + k / K;
+            double x = x1 + (double)k / K;
+            double y = y1 + (double)k / K;
 
             henon(x, y);
             
@@ -129,7 +129,7 @@ void make_graph()
             int cell = return_cell(x , y);
             cout << cell << " ";
             
-            if (find(grid[i].begin(), grid[i].end(), cell) != grid[i].end())
+            if (find(grid[i].begin(), grid[i].end(), cell) == grid[i].end())
             {
                 grid[i].push_back(cell);
                 gr[cell].push_back(i);
@@ -143,9 +143,9 @@ void make_graph()
 void draw_square (int cell)
 {
     glColor3f(0.0, 0.0, 1.0);
-    int row = cell / rows;
-    int col = cell % rows;
-    glRectf(row * Scale, col * Scale, (row + 1) * Scale, (col + 1) * Scale);
+    int row = cell / cols;
+    int col = cell % cols;
+    glRectf(col * Scale, row * Scale, (col + 1) * Scale, (row + 1) * Scale);
 }
 
 void draw_grid()
@@ -181,6 +181,9 @@ void display()
         {
             draw_square(v);
         }
+        
+    //for (int i = 0; i <= number_of_cells; i++)
+      //  draw_square(i);
     draw_grid();
     glFlush();
 }
@@ -204,7 +207,7 @@ int main (int argc, char* argv[])
     
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho( - WIDTH, WIDTH, HEIGHT, -HEIGHT, -1.0, 1.0);
+    glOrtho(-WIDTH, WIDTH, HEIGHT, -HEIGHT, -1.0, 1.0);
     glTranslatef(-WIDTH, -HEIGHT, 0);
     glutDisplayFunc(display);
     glutMainLoop();
