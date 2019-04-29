@@ -1,2 +1,8 @@
 **/*.o
 **/.*.swp
+**/Euler
+**/graph
+**/Henon
+**/RungeKutta
+**/Symbol
+**/Symbol2
