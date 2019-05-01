@@ -198,15 +198,14 @@ void Vector::calculations (Vector& vec, Rational_number rat,Node<Rational_number
     calculations(vec,rat, q->return_right(), op);
 }
 
-void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const
+void Vector::dot_product(Rational_number& rat, Node<Rational_number>* p,const Vector& vec) const
 {
     if (!p) return;
-    Rational_number ratio = (*this)[p->return_key()];
 
-    rat += ratio * p->value;
+    rat += p->value * vec[p->return_key()];
 
-    dot_product(rat, p->return_left(), q);
-    dot_product(rat, p->return_right(), q);
+    dot_product(rat, p->return_left(), vec);
+    dot_product(rat, p->return_right(), vec);
 }
 
 //
@@ -331,7 +330,7 @@ Rational_number Vector::operator*(const Vector& rv) const
     if (size != rv.size) throw WrongVectorSize("*", *this, rv);
     Rational_number res;
     
-    dot_product(res, node, rv.node);
+    dot_product(res, node, rv);
 
     return res;
 }
