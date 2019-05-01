@@ -598,7 +598,11 @@ void Parser::DECLARATION()
         DECLARE();
      } 
     else
+    {
+        if (current_lex.get_type() != LEX_PROCESS)
+            throw Error("Expected 'declare' or 'proccess' region instead of: ", current_lex);
         return;
+    }
     gl();
     while (current_lex.get_type() != LEX_PROCESS)
     {
@@ -704,13 +708,16 @@ void Parser::PROCESS()
 void Parser::OPS()
 {
     OP();
-    while (current_lex.get_type() != LEX_FIN &&
-           current_lex.get_type() != LEX_SEMICOLON)
+    while (current_lex.get_type() != LEX_SEMICOLON)
     {
+        if (current_lex.get_type() == LEX_FIN)
+        {
+            current_lex.set_row(current_lex.get_row() - 2);
+            throw Error("expected ';' or another operator instead of: ", current_lex);
+        }
         gl();
         OP();
-        if (current_lex.get_type() == LEX_SEMICOLON ||
-            current_lex.get_type() == LEX_FIN)
+        if (current_lex.get_type() == LEX_SEMICOLON)
         {
             poliz.push_back(current_lex);
             break;
@@ -1199,7 +1206,7 @@ void Executer::execute(vector <Lex>& poliz)
                     {
                         throw err;
                     }
-                    args.push(Lex(id.get_type(), id.get_value(), l_id.get_column(), l_id.get_row()));
+                    args.push(Lex(TID[l_id.get_value()].get_type(), TID[l_id.get_value()].get_value(), l_id.get_column(), l_id.get_row()));
                 } // LEX_ASSIGN
                 break;
             case LEX_PLUS:
@@ -1208,8 +1215,17 @@ void Executer::execute(vector <Lex>& poliz)
                     args.pop();
                     Lex lv = args.top();
                     args.pop();
-                    Lex res = check_add_sub(lv, rv, '+');
-                    args.push(res);
+
+                    try
+                    {
+                        Lex res = check_add_sub(lv, rv, '+');
+                        args.push(res);
+                    }
+                    catch (Overflow &of)
+                    {
+                        throw Error("Caught overflow of two operands: ",
+                                    Lex(LEX_NONE,lv.get_column(), lv.get_row()));
+                    }
                 } // LEX_PLUS
                 break;
             case LEX_MINUS:
@@ -1218,8 +1234,18 @@ void Executer::execute(vector <Lex>& poliz)
                     args.pop();
                     Lex lv = args.top();
                     args.pop();
-                    Lex res = check_add_sub(lv, rv, '-');
-                    args.push(res);
+                    try
+                    {
+                        Lex res = check_add_sub(lv, rv, '-');
+                        args.push(res);
+
+                    }
+                    catch (Overflow &of)
+                    {
+                        throw Error("Caught overflow of two operands: ",
+                                    Lex(LEX_NONE,lv.get_column(), lv.get_row()));
+
+                    }
                 } // LEX_MINUS
                 break;
             case LEX_TIMES:
@@ -1227,8 +1253,16 @@ void Executer::execute(vector <Lex>& poliz)
                     Lex rv = args.top();
                     args.pop();
                     Lex lv = args.top();
-                    Lex res = check_mul(lv, rv);
-                    args.push(res);
+                    try
+                    {
+                        Lex res = check_mul(lv, rv);
+                        args.push(res);
+                    }
+                    catch (Overflow &of)
+                    {
+                        throw Error("Caught overflow of two operands: ",
+                                    Lex(LEX_NONE,lv.get_column(), lv.get_row()));
+                    }
                 } // LEX_TIMES
                 break;
             case LEX_SLASH:
@@ -1237,8 +1271,16 @@ void Executer::execute(vector <Lex>& poliz)
                     args.pop();
                     Lex lv = args.top();
                     args.pop();
-                    Lex res = check_div(lv, rv);
-                    args.push(res);
+                    try
+                    {
+                        Lex res = check_div(lv, rv);
+                        args.push(res);
+                    }
+                    catch (Overflow &of)
+                    {
+                        throw Error("Caught overflow of two operands: ",
+                                    Lex(LEX_NONE,lv.get_column(), lv.get_row()));
+                    }
                 } // LEX_SLASH
                 break;
             case LEX_POWER:
@@ -1269,11 +1311,24 @@ void Executer::execute(vector <Lex>& poliz)
                     {
                         throw Error("Expected right operand of type 'integer' instead of: ", rv);
                     }
-                    Matrix result = matrixes[lv.get_value()] ^ ints[rv.get_value()];
-                    int adress = add_value(matrixes, result);
-                    Lex res(LEX_MATRIX, adress, lv.get_column(), lv.get_row());
+                    try
+                    {
+                        Matrix result = matrixes[lv.get_value()] ^ ints[rv.get_value()];
+                        
+                        int adress = add_value(matrixes, result);
+                        Lex res(LEX_MATRIX, adress, lv.get_column(), lv.get_row());
 
-                    args.push(res);
+                        args.push(res);
+                    }
+                    catch (WrongMatrixSize & wrm)
+                    {
+                        throw Error("Matrix must have equal columns and rows: ", lv);
+                    }
+                    catch (Overflow& of)
+                    {
+                        throw Error("Caught overflow of two operands: ",
+                                    Lex(LEX_NONE,lv.get_column(), lv.get_row()));
+                    }
                 } // LEX_INFO
                 break;
             case LEX_INFO:
@@ -2610,9 +2665,15 @@ int main (int argc, char* argv[])
         }
 
         cerr << str << endl;
-
-        for (int i = 1; i < err.lex.get_column(); i++)
-            cerr << " ";
+        
+        if (err.lex.get_type() == LEX_FIN)
+        {
+            for (int i = 0; i < (int)str.size(); i++)
+                cerr << " ";
+        }
+        else
+            for (int i = 1; i < err.lex.get_column(); i++)
+                cerr << " ";
         cerr << COLOR_GREEN << "^" << COLOR_CLEAR << endl;
         
         //if (file != stdin)
