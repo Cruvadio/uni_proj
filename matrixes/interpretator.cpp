@@ -1,15 +1,23 @@
 #include <vector>
 #include <cstdio>
+#include <errno.h>
 #include <stack>
 #include <queue>
 #include <algorithm>
 #include <string>
 #include <unistd.h>
 #include <iostream>
+#include <fstream>
 #include <typeinfo>
 #include "matrix.h"
 
+
+#define COLOR_RED "\x1b[31;1m"
+#define COLOR_CLEAR "\x1b[0m"
+#define COLOR_GREEN "\x1b[32;1m"
+
 using namespace std;
+
 
 enum lex_type
 {
@@ -64,6 +72,8 @@ class Lex
         Lex(const Lex& l): type(l.type), value(0)
         {
             value = l.value;
+            col = l.col;
+            row = l.row;
         }
         lex_type get_type() const { return type;}
         int get_value() const { return value;}
@@ -79,6 +89,15 @@ class Lex
 
         friend ostream& operator << (ostream& os, const Lex& lex);
 
+};
+
+class Error
+{
+    public:
+        Lex lex;
+        string reason;
+        Error(const char* reason, Lex lex = Lex(LEX_NONE)) : lex(lex), reason(reason) {}
+        Error(string reason, Lex lex = Lex(LEX_NONE)) : lex(lex), reason(reason) {}
 };
 
 class Ident
@@ -184,11 +203,6 @@ class Scanner
         Lex get_lex();
         void return_lex (Lex& lex);
         void get_line();
-        ~Scanner( )
-        {
-            if (file != stdin)
-                fclose(file);
-        }
 };
 
 const char*
@@ -259,6 +273,12 @@ Lex Scanner::get_lex()
                     gc();
                     if (c == '*')
                         CS = COMMENT;
+                    else 
+                    {
+                        buf.push_back(c);
+                        return Lex( LEX_SLASH, LEX_SLASH - LEX_FIN, col, row);
+                        rc();
+                    }
                 }
                 else if (c == EOF)
                 {
@@ -276,7 +296,11 @@ Lex Scanner::get_lex()
                     {
                         return Lex( (lex_type) (adress + (int) LEX_FIN), adress, col, row);
                     }
-                    else throw c;
+                    else
+                    {
+                        Lex l(LEX_NONE, col, row);
+                        throw Error("Unknown character: ", l);
+                    }
                 }
                 break;
             case IDENT:
@@ -324,10 +348,14 @@ Lex Scanner::get_lex()
                 break;
             case FLOAT:
                 {
+                    int size = buf.size();
                     double num = atoi (buf.c_str());
                     double frac_part = 10;
                     if (!isdigit(c))
-                        throw c;
+                    {
+                        Lex l (LEX_NONE, col, row);
+                        throw Error("Unexpected character: digit was expected", l);
+                    }
                     while (isdigit(c))
                     {
                         num += (double)(c - '0')/ frac_part;
@@ -336,7 +364,7 @@ Lex Scanner::get_lex()
                     }
                     rc();
                     int adress = add_value(doubles, num);
-                    return Lex(LEX_FLOAT_NUM, adress, col - buf.size() + 1, row);
+                    return Lex(LEX_FLOAT_NUM, adress, col - buf.size() - size + 2, row);
                 }
                 break;
             case RATIONAL:
@@ -357,14 +385,13 @@ Lex Scanner::get_lex()
                     }
                     catch (Zerodivide & zr)
                     {
-                        zr.debug_print();
-                        cout << "On line: " << row << " column: " << col << endl;
-                        throw c;
+                        Lex l(LEX_NONE, col, row);
+                        throw Error("Dividing by zero in rational number: ", l);
                     }
                     catch (NotANumber &nan)
                     {
-                        nan.debug_print();
-                        cout << "On line: " << row << " column: " << col << endl;
+                        Lex l(LEX_NONE, col, row);
+                        throw Error("Is not a rational number: ", l);
                     }
                 }
                 break;
@@ -387,7 +414,8 @@ Lex Scanner::get_lex()
                 }
                 else if (c == EOF)
                 {
-                    throw c;
+                    Lex l (LEX_NONE, col, row);
+                    throw Error("Expected '*/' instead of EOF", l);
                 }
                 else if (c == '\n')
                 {
@@ -407,8 +435,13 @@ Lex Scanner::get_lex()
                         buf.push_back('\r');
                     else if (c == '"')
                         buf.push_back(c);
-                    else 
-                        throw c;
+                    else if (c == '\\')
+                        buf.push_back('\\');
+                    else
+                    {
+                        Lex l(LEX_NONE, col, row);
+                        throw Error("Wrong escape character: ", l);
+                    }
                 }
                 else if (c == '"')
                 {
@@ -416,7 +449,14 @@ Lex Scanner::get_lex()
                     return Lex(LEX_STRING, adress, col - buf.size() + 1, row);
                 }
                 else if (c == EOF || c == '\n')
-                    throw c;
+                {
+                    Lex l(LEX_NONE, col, row);
+                    string err = "Expected '\"' instead of: ";
+                    if (c == EOF)
+                        err += "EOF";
+                    else err += "\\n";
+                    throw Error(err, l);
+                }
                 else
                     buf.push_back(c);
                 break;
@@ -429,7 +469,10 @@ Lex Scanner::get_lex()
 ostream& operator << (ostream& os, const Lex& lex)
 {
     string t;
-    if (lex.type <= LEX_COL)
+
+    if (lex.type == LEX_NONE)
+        return os;
+    else if (lex.type <= LEX_COL)
         t = Scanner::DEFINED_WORDS[lex.type];
     else if (lex.type >= LEX_COLON && lex.type <= LEX_COMA)
         t = Scanner::DEFINED_SIGNS[lex.type - LEX_FIN];
@@ -440,14 +483,45 @@ ostream& operator << (ostream& os, const Lex& lex)
     else if (lex.type == LEX_FLOAT_NUM)
         t = to_string(doubles[lex.value]);
     else if (lex.type == LEX_RATIO_NUM)
-        t = ratios[lex.value].to_string();
+    {
+        char *str = ratios[lex.value].to_string();
+        t = str;
+        delete[]str;
+    }
     else if (lex.type == LEX_ID)
+    {
         t = TID[lex.value].get_name();
+        t+= " of type ";
+        switch (TID[lex.get_value()].get_type())
+        {
+            case LEX_INTEGER:
+                t += "'integer'";
+                break;
+            case LEX_FLOAT:
+                t += "'float'";
+                break;
+            case LEX_RATIONAL:
+                t += "'rational'";
+                break;
+            case LEX_MATRIX:
+                t += "'matrix'";
+                break;
+            case LEX_VECTOR:
+                t += "'vector'";
+                break;
+            default:
+                t += "'unknown'";
+                break;
+        }
+        os << t;
+        return os;
+    }
     else if (lex.type == LEX_STRING)
         t = strings[lex.value];
     else if (lex.type == LEX_FIN)
         t = "END";
-    os << '(' << t << ");" << endl;
+
+    os  << "'" << t << "'";
     return os;
 }
 
@@ -481,11 +555,12 @@ class Parser
     void gl()
     {
         current_lex = scan.get_lex();
-        cout << current_lex;
+        //cout << current_lex;
     }
     public:
         vector<Lex> poliz;
         Parser(const char* name): scan(name) {}
+        Parser(FILE* file): scan(file) {}
         void analyse();
 
 };
@@ -505,16 +580,26 @@ void Parser::PROGRAM()
     PROCESS();
 }
 
+
 void Parser::DECLARATION()
 {
     if (current_lex.get_type() == LEX_DECLARE)
     {
+        lexes.push(current_lex);
         gl();
         if (current_lex.get_type() != LEX_COLON)
-            throw current_lex;
+        {
+            Lex l(lexes.top());
+            l.set_column(l.get_column() + 7);
+            lexes.pop();
+            throw Error("After \"declare\" expected ':' instead of: ", l);
+        }
         gl();
         DECLARE();
-    }
+     } 
+    else
+        return;
+    gl();
     while (current_lex.get_type() != LEX_PROCESS)
     {
         DECLARE();
@@ -525,20 +610,25 @@ void Parser::DECLARATION()
 void Parser::DECLARE()
 {
     lexes.push(current_lex);
+    TYPE();
     gl();
     if (current_lex.get_type() != LEX_COLON)
-        throw current_lex;
+    {
+        throw Error("After type expected ':' instead of: ", current_lex);
+    }
     current_lex = lexes.top();
-    TYPE();
     do
     {
         ID();
         declare(lexes.top().get_type(), current_lex.get_value());
+        gl();
     }
     while(current_lex.get_type() == LEX_COMA);
     lexes.pop();
     if (current_lex.get_type() != LEX_SEMICOLON)
-        throw current_lex;
+    {
+        throw Error("Expected ';' after declation statement instead of: ", current_lex);
+    }
 }
 
 void Parser::TYPE()
@@ -548,17 +638,21 @@ void Parser::TYPE()
         current_lex.get_type() != LEX_RATIONAL &&
         current_lex.get_type() != LEX_VECTOR &&
         current_lex.get_type() != LEX_MATRIX)
-        throw current_lex;
+        throw Error("Wrong type: ", current_lex);
 }
 
 void Parser::ID()
 {
     gl();
     if (current_lex.get_type() != LEX_ID)
-        throw current_lex;
+    {
+        throw Error("Expected identificator instead of: ", current_lex);
+    }
+    Lex id = current_lex;
     gl();
     if (current_lex.get_type() == LEX_LPAREN)
     {
+        poliz.push_back(id);
         gl();
         if (current_lex.get_type() == LEX_MINUS)
         {
@@ -569,7 +663,9 @@ void Parser::ID()
             current_lex.get_type() != LEX_RATIO_NUM &&
             current_lex.get_type() != LEX_FLOAT_NUM &&
             current_lex.get_type() != LEX_STRING)
-            throw current_lex;
+        {
+            throw Error("Wrong argument in constructor: ", current_lex);
+        }
         poliz.push_back(current_lex);
         if (!lexes.empty() && lexes.top().get_type() == LEX_MINUS)
         {
@@ -579,15 +675,25 @@ void Parser::ID()
         poliz.push_back(Lex(POLIZ_ASSIGN));
         gl();
         if (current_lex.get_type() != LEX_RPAREN)
-            throw current_lex;
+        {
+            throw Error("Expected ')' instead of: ", current_lex);
+        }
     }
+    else
+        scan.return_lex(current_lex);
+    current_lex = id;
 }
 
 void Parser::PROCESS()
 {
+    lexes.push(current_lex);
     gl();
     if (current_lex.get_type() != LEX_COLON)
-        throw current_lex;
+    {
+        lexes.top().set_column(lexes.top().get_column() + 7);
+        throw Error("Expected ':' after \"process\" instead of: ", lexes.top());
+        lexes.pop();
+    }
     gl();
     while(current_lex.get_type() != LEX_FIN)
     {
@@ -595,7 +701,6 @@ void Parser::PROCESS()
         gl();
     }
 }
-
 void Parser::OPS()
 {
     OP();
@@ -618,22 +723,20 @@ void Parser::OP()
     //gl();
     if (current_lex.get_type() == LEX_ID)
     {
-        lexes.push(current_lex);
+        Lex id = current_lex;
         gl();
         if (current_lex.get_type() == LEX_ASSIGN)
         {
-            poliz.push_back(lexes.top());
-            lexes.pop();
-            lexes.push(current_lex);
+            Lex op = current_lex;
+            gl();
             EXPRESSION();
-            poliz.push_back(lexes.top());
-            lexes.pop();
+            poliz.push_back(id);
+            poliz.push_back(op);
         }
         else   
         {
             scan.return_lex(current_lex);
-            current_lex = lexes.top();
-            lexes.pop();
+            current_lex = id;
             EXPRESSION();
         }
     }
@@ -643,14 +746,12 @@ void Parser::OP()
         gl();
         if (current_lex.get_type() != LEX_LPAREN)
         {
-            cout << "\"(\" was expected instead of :";
-            throw current_lex;
+            throw Error( "\"(\" was expected instead of: ", current_lex);
         }
         gl();
         if (current_lex.get_type() != LEX_STRING)
         {
-            cout << "Expected argument of type string instead of: ";
-            throw current_lex;
+            throw Error( "Expected argument of type string instead of: ", current_lex);
         }
         poliz.push_back(current_lex);
         poliz.push_back(lexes.top());
@@ -658,8 +759,7 @@ void Parser::OP()
         gl();
         if (current_lex.get_type() != LEX_RPAREN)
         {
-            cout << "\")\" was expected\n instead of: ";
-            throw current_lex;
+            throw Error( "\")\" was expected instead of: ", current_lex);
         }
         gl();
     }
@@ -673,11 +773,10 @@ void Parser::EXPRESSION()
     while (current_lex.get_type() == LEX_PLUS ||
            current_lex.get_type() == LEX_MINUS)
     {
-        lexes.push(current_lex);
+        Lex op = current_lex;
         gl();
         EXPR();
-        poliz.push_back(lexes.top());
-        lexes.pop();
+        poliz.push_back(op);
     }
 }
 void Parser::EXPR()
@@ -687,11 +786,10 @@ void Parser::EXPR()
            current_lex.get_type() == LEX_SLASH ||
            current_lex.get_type() == LEX_POWER)
     {
-        lexes.push(current_lex);
+        Lex op = current_lex;
         gl();
         UNARY();
-        poliz.push_back(lexes.top());
-        lexes.pop();
+        poliz.push_back(op);
     }
 }
 void Parser::UNARY()
@@ -748,10 +846,9 @@ void Parser::OBJECT()
             if (current_lex.get_type() == LEX_LBRACKET)
             {
                 gl();
-                if (current_lex.get_value() != LEX_NUM)
+                if (current_lex.get_type() != LEX_NUM)
                 {
-                    cout << "Expected argument of type integer instead of: ";
-                    throw current_lex;
+                    throw Error( "Expected argument of type 'integer' instead of: ", current_lex);
                 }
                 if (id.get_type() == LEX_MATRIX)
                 {
@@ -760,8 +857,10 @@ void Parser::OBJECT()
                     if (current_lex.get_type() == LEX_COMA)
                     {
                         gl();
-                        if (current_lex.get_value() != LEX_NUM)
-                            throw current_lex;
+                        if (current_lex.get_type() != LEX_NUM)
+                        {
+                            throw Error("Expected argument of type 'integer' instead of: ", current_lex);
+                        }
                         Lex col = current_lex;
                         poliz.push_back(lexes.top());
                         poliz.push_back(Lex(POLIZ_MTR_EL,
@@ -772,8 +871,7 @@ void Parser::OBJECT()
                     }
                     else
                     {
-                        cout << "Expected ',' instead of: ";
-                        throw current_lex;
+                         throw Error( "Expected ',' instead of: ", current_lex);
                     }
                 } // Matrix
                 else
@@ -789,8 +887,7 @@ void Parser::OBJECT()
                 gl();
                 if (current_lex.get_type() != LEX_RBRACKET)
                 {
-                    cout << "Expected ']' instead of: ";
-                    throw current_lex;
+                    throw Error( "Expected ']' instead of: ", current_lex);
                 }
             } // Brackets check
             else
@@ -831,8 +928,7 @@ void Parser::OBJECT()
     }
     else
     {
-        cout << "Expected some object insted of: ";
-        throw current_lex;
+        throw Error( "Expected identificator or number instead of: ", current_lex);
     }
     gl();
 }
@@ -840,7 +936,9 @@ void Parser::OBJECT()
 void Parser::check_id()
 {
     if (!TID[current_lex.get_value()].is_declared())
-        throw current_lex;
+    {
+        throw Error("Not declared identificator: ", current_lex);
+    }
 }
 
 void Parser::declare(lex_type type, int adress)
@@ -858,17 +956,23 @@ void Parser::FUNC()
         lexes.push(current_lex);
         gl();
         if (current_lex.get_type() != LEX_LPAREN)
-            throw current_lex;
+        {
+            throw Error("Excpected '(' instead of: ", current_lex);
+        }
         gl();
         if (current_lex.get_type() != LEX_STRING)
-            throw current_lex;
+        {
+            throw Error("Expected argument of type string in arguments instead of: ", current_lex);
+        }
         
         poliz.push_back(current_lex);
         poliz.push_back(lexes.top());
         lexes.pop();
         gl();
         if (current_lex.get_type() != LEX_RPAREN)
-            throw current_lex;
+        {
+            throw Error("Expected ')' instead of: ", current_lex);
+        }
     }
     else if (current_lex.get_type() == LEX_PRINT ||
              current_lex.get_type() == LEX_ROTATE ||
@@ -882,22 +986,23 @@ void Parser::FUNC()
         lexes.push(current_lex);
         gl();
         if (current_lex.get_type() != LEX_LPAREN)
-            throw current_lex;
+        {
+            throw Error("Expected '(' instead of: ", current_lex);
+        }
         gl();
-        if (current_lex.get_type() != LEX_NUM)
-            throw current_lex;
-        poliz.push_back(Lex(LEX_INTEGER,
-                            current_lex.get_value(),
-                            current_lex.get_column(),
-                            current_lex.get_row()));
+        poliz.push_back(current_lex);
         poliz.push_back(lexes.top());
         lexes.pop();
         gl();
         if (current_lex.get_type() != LEX_RPAREN)
-            throw current_lex;
+        {
+            throw Error("Expected ')' instead of: ", current_lex);
+        }
     }
     else
-        throw current_lex;
+    {
+        throw Error("Unknown function: ", current_lex);
+    }
     gl();
 }
 
@@ -921,7 +1026,6 @@ void Executer::execute(vector <Lex>& poliz)
 {
     stack <Lex> args;
     int index = 0, size = poliz.size();
-    cout << "STARTED POLIZ EXECUTION\n";
     while (index < size)
     {
         current_lex = poliz[index];
@@ -939,12 +1043,18 @@ void Executer::execute(vector <Lex>& poliz)
                     Lex id = args.top();
                     args.pop();
                     if (id.get_type() != LEX_ID)
-                        throw id;
+                    {
+                        throw Error("Expected identificator for initialization: ",
+                                     current_lex);
+                    }
                     switch(TID[id.get_value()].get_type())
                     {
                         case LEX_MATRIX:
                             if (arg.get_type() != LEX_STRING)
-                                throw arg;
+                            {
+                                throw Error("Expected file-name for matrix initialization instead of: ",
+                                            current_lex);
+                            }
                             try
                             {
                                 adress = add_value(matrixes, 
@@ -952,13 +1062,15 @@ void Executer::execute(vector <Lex>& poliz)
                             }
                             catch(OpenFileError &of)
                             {
-                                of.debug_print();
-                                throw arg;
+                                throw Error("Can't open file: ", arg);
                             }
                             break;
                         case LEX_VECTOR:
                             if (arg.get_type() != LEX_STRING)
-                                throw arg;
+                            {
+                                throw Error("Expected file-name for vector initialization instead of: ",
+                                            current_lex);
+                            }
                             try
                             {
                                 adress = add_value(vectors,
@@ -966,27 +1078,50 @@ void Executer::execute(vector <Lex>& poliz)
                             }
                             catch (OpenFileError &of)
                             {
-                                of.debug_print();
-                                throw arg;
+                                throw Error("Can't open file: ",arg);
                             }
                             break;
                         case LEX_INTEGER:
                             if (arg.get_type() != LEX_NUM)
-                                throw arg;
+                            {
+                                throw Error("Expected number for integer initialization instead of: ",
+                                            arg);
+                            }
                             adress = arg.get_value();
                             break;
                         case LEX_FLOAT:
                             if (arg.get_type() != LEX_FLOAT_NUM)
-                                throw arg;
+                            {
+                                throw Error("Expected pointed number for float initialization instead of:", 
+                                            arg);
+                            }
                             adress = arg.get_value();
                             break;
                         case LEX_RATIONAL:
-                            if (arg.get_type() != LEX_RATIO_NUM)
-                                throw arg;
-                            adress = arg.get_value();
+                            if (arg.get_type() == LEX_RATIO_NUM)
+                            {
+                                adress = arg.get_value();
+                            }
+                            else if (arg.get_type() == LEX_NUM)
+                            {
+                                Rational_number i = ints[arg.get_value()];
+                                adress = add_value(ratios, i);
+                            }
+                            else if (arg.get_type() == LEX_FLOAT_NUM)
+                            {
+                                Rational_number i = doubles[arg.get_value()];
+                                adress = add_value(ratios, i);
+                            }
+                            else
+                            {
+                                throw Error("Expected number for initialization of rational number instead of",
+                                            arg);
+                            }
                             break;
                         default:
-                            throw id;
+                            {
+                                throw Error("Unrnown identificatior type: ", id);
+                            }
                             break;
                     }
                     TID[id.get_value()].put_value(adress);
@@ -1010,8 +1145,14 @@ void Executer::execute(vector <Lex>& poliz)
                                     ratios[id.get_value()] = - ratios[id.get_value()];
                                 else if (id.get_value() == LEX_FLOAT)
                                     doubles[id.get_value()] = - doubles[id.get_value()];
+                                else if (id.get_type() == LEX_VECTOR)
+                                    vectors[id.get_value()] = (Rational_number) (-1)*vectors[id.get_value()];
+                                else if (id.get_type() == LEX_MATRIX)
+                                    matrixes[id.get_value()] = (Rational_number)(-1)*matrixes[id.get_value()];
                                 else 
-                                    throw op;
+                                {
+                                    throw Error("Unknown identificator type: ", op);
+                                }
                             }
                             break;
                         case LEX_NUM: case LEX_INTEGER:
@@ -1019,10 +1160,18 @@ void Executer::execute(vector <Lex>& poliz)
                             break;
                         case LEX_RATIO_NUM: case LEX_RATIONAL:
                             ratios[op.get_value()] = - ratios[op.get_value()];
+                            break;
                         case LEX_FLOAT_NUM: case LEX_FLOAT:
                             doubles[op.get_value()] = - doubles[op.get_value()];
+                            break;
+                        case LEX_MATRIX:
+                            matrixes[op.get_value()] = (Rational_number)(-1)*matrixes[op.get_value()];
+                            break;
+                        case LEX_VECTOR:
+                            vectors[op.get_value()] = (Rational_number)(-1)*vectors[op.get_value()];
+                            break;
                         default:
-                            throw op;
+                            throw Error("Unknown operand type: ", op);
                             break;
                     }
                 } // POLIZ_UNARY_MINUS
@@ -1030,13 +1179,26 @@ void Executer::execute(vector <Lex>& poliz)
             case LEX_ASSIGN:
                 {
                     Lex l_id = args.top();
-                    if (l_id.get_type() != LEX_ID)
-                        throw l_id;
-                    Ident id = TID[l_id.get_value()];
                     args.pop();
                     Lex exp = args.top();
+                    if (l_id.get_type() != LEX_ID)
+                    {
+                        throw Error("Expected identificator as left operand for assigment operator instead of: ", l_id);
+                    }
+                    Ident id = TID[l_id.get_value()];
                     args.pop();
-                    check_assignment(id, exp);
+                    try
+                    {
+                        check_assignment(TID[l_id.get_value()], exp);
+                    }
+                    catch(const char* err)
+                    {
+                        throw Error(err, l_id);
+                    }
+                    catch(Error& err)
+                    {
+                        throw err;
+                    }
                     args.push(Lex(id.get_type(), id.get_value(), l_id.get_column(), l_id.get_row()));
                 } // LEX_ASSIGN
                 break;
@@ -1088,22 +1250,28 @@ void Executer::execute(vector <Lex>& poliz)
                     if (rv.get_type() == LEX_ID)
                     {
                         Ident id = TID[rv.get_value()];
-                        if (!id.is_assigned()) throw lv;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", rv);
                         rv = Lex(id.get_type(), id.get_value(), rv.get_column(), rv.get_row());
                     }
                     if (lv.get_type() == LEX_ID)
                     {
-                        Ident id = TID[lv.get_value()];
-                        if (!id.is_assigned()) throw rv;
+                        Ident& id = TID[lv.get_value()];
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", lv);
                         lv = Lex(id.get_type(), id.get_value(), lv.get_column(), lv.get_row());
                     }
                     if (lv.get_type() != LEX_MATRIX)
-                        throw lv;
+                    {
+                        throw Error("Expected left operand of type 'matrix' instead of: ", lv);
+                    }
                     if (rv.get_type() != LEX_INTEGER)
-                        throw rv;
+                    {
+                        throw Error("Expected right operand of type 'integer' instead of: ", rv);
+                    }
                     Matrix result = matrixes[lv.get_value()] ^ ints[rv.get_value()];
                     int adress = add_value(matrixes, result);
-                    Lex res(LEX_MATRIX, adress, lv.get_column(), rv.get_row());
+                    Lex res(LEX_MATRIX, adress, lv.get_column(), lv.get_row());
 
                     args.push(res);
                 } // LEX_INFO
@@ -1113,7 +1281,9 @@ void Executer::execute(vector <Lex>& poliz)
                     Lex op = args.top();
                     args.pop();
                     if (op.get_type() != LEX_STRING)
-                        throw op;
+                    {
+                        throw Error("Expected argument of type 'string' instead of: ", op);
+                    }
                     cout << strings[op.get_value()];
                 } // LEX_INFO
                 break;
@@ -1124,7 +1294,8 @@ void Executer::execute(vector <Lex>& poliz)
                     if (op.get_type() == LEX_ID)
                     {
                         Ident id = TID[op.get_value()];
-                        if (!id.is_assigned()) throw op;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", op);
                         op = Lex(id.get_type(), id.get_value(), op.get_column(), op.get_row());
                     }
                     switch(op.get_type())
@@ -1132,31 +1303,32 @@ void Executer::execute(vector <Lex>& poliz)
                         case LEX_MATRIX:
                             {
                                 char* str = matrixes[op.get_value()].to_string();
-                                cout << str;
+                                cout << str << endl;
                                 delete[]str;
                             }
                             break;
                         case LEX_VECTOR:
                             {
                                 char* str = vectors[op.get_value()].to_string();
-                                cout << str;
+                                cout << str << endl;
                                 delete[]str;
                             }
                             break;
                         case LEX_RATIONAL:
                             {
                                 char* str = ratios[op.get_value()].to_string();
-                                cout << str;
+                                cout << str << endl;
                                 delete[]str;
                             }
+                            break;
                         case LEX_FLOAT:
-                            cout << doubles[op.get_value()];
+                            cout << doubles[op.get_value()] << endl;
                             break;
                         case LEX_INTEGER:
-                            cout << ints[op.get_value()];
+                            cout << ints[op.get_value()] << endl;
                             break;
                         default:
-                            throw op;
+                            throw Error("Unknown operand type: ", op);
                             break;
                     }
                 } // LEX_PRINT
@@ -1171,18 +1343,22 @@ void Executer::execute(vector <Lex>& poliz)
                     if (col.get_type() == LEX_ID)
                     {
                         Ident id = TID[col.get_value()];
-                        if (!id.is_assigned()) throw col;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", col);
                         col = Lex(id.get_type(), id.get_value(), col.get_column(), col.get_row());
                     }
                     if (mtr.get_type() == LEX_ID)
                     {
                         Ident id = TID[mtr.get_value()];
-                        if (!id.is_assigned()) throw mtr;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", mtr);
                         mtr = Lex(id.get_type(), id.get_value(), mtr.get_column(), mtr.get_row());
                     }
 
-                    if (col.get_type() != LEX_INTEGER) throw col;
-                    if (mtr.get_type() != LEX_MATRIX) throw mtr;
+                    if (col.get_type() != LEX_INTEGER && col.get_type() != LEX_NUM)  
+                        throw Error("Expected argument of type 'integer' instead of: ", col);
+                    if (mtr.get_type() != LEX_MATRIX) 
+                        throw Error("Expected operand of type 'matrix' instead of: ", mtr);
 
                     Matrix_col_coord coord(ints[col.get_value()]);
                     int adress;
@@ -1192,8 +1368,7 @@ void Executer::execute(vector <Lex>& poliz)
                     }
                     catch (OutOfRangeMatrix & orf)
                     {
-                        orf.debug_print();
-                        throw col;
+                        throw Error("Column is out of matrix range: ", col);
                     }
 
                     args.push(Lex(LEX_VECTOR, adress, mtr.get_column(), mtr.get_row()));
@@ -1209,18 +1384,22 @@ void Executer::execute(vector <Lex>& poliz)
                     if (row.get_type() == LEX_ID)
                     {
                         Ident id = TID[row.get_value()];
-                        if (!id.is_assigned()) throw row;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", row);
                         row = Lex(id.get_type(), id.get_value(), row.get_column(), row.get_row());
                     }
                     if (mtr.get_type() == LEX_ID)
                     {
                         Ident id = TID[mtr.get_value()];
-                        if (!id.is_assigned()) throw mtr;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", mtr);
                         mtr = Lex(id.get_type(), id.get_value(), mtr.get_column(), mtr.get_row());
                     }
 
-                    if (row.get_type() != LEX_INTEGER) throw row;
-                    if (mtr.get_type() != LEX_MATRIX) throw mtr;
+                    if (row.get_type() != LEX_INTEGER && row.get_type() != LEX_NUM) 
+                        throw Error("Expected argument of type 'integer' instead of: ", row);
+                    if (mtr.get_type() != LEX_MATRIX) 
+                        throw Error("Expected operand of type 'matrix' instead of: ", mtr);
 
                     Matrix_row_coord coord(ints[row.get_value()]);
                     int adress;
@@ -1230,8 +1409,7 @@ void Executer::execute(vector <Lex>& poliz)
                     }
                     catch (OutOfRangeMatrix & orf)
                     {
-                        orf.debug_print();
-                        throw row;
+                        throw Error("Row is out of matrix range: ", row);
                     }
 
                     args.push(Lex(LEX_VECTOR, adress, mtr.get_column(), mtr.get_row()));
@@ -1244,7 +1422,8 @@ void Executer::execute(vector <Lex>& poliz)
                     if (op.get_type() == LEX_ID)
                     {
                         Ident id = TID[op.get_value()];
-                        if (!id.is_assigned()) throw op;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", op);
                         op = Lex(id.get_type(), id.get_value(), op.get_column(), op.get_row());
                     }
                     if (op.get_type() == LEX_MATRIX)
@@ -1260,7 +1439,9 @@ void Executer::execute(vector <Lex>& poliz)
                         args.push(Lex(LEX_MATRIX, adress, op.get_column(), op.get_row()));
                     }
                     else
-                        throw op;
+                    {
+                        throw Error("Expected 'vector' or 'matrix' as operand instead of: ", op);
+                    }
                 } // LEX_ROTATE
                 break;
             case LEX_WRITE:
@@ -1271,11 +1452,14 @@ void Executer::execute(vector <Lex>& poliz)
                     args.pop();
 
                     if (str.get_type() != LEX_STRING)
-                        throw str;
+                    {
+                        throw Error("Expected argument of type 'string' instead of: ", str);
+                    }
                     if (op.get_type() == LEX_ID)
                     {
                         Ident id = TID[op.get_value()];
-                        if (!id.is_assigned()) throw op;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", op);
                         op = Lex(id.get_type(), id.get_value(), op.get_column(), op.get_row());
                     }
                     if (op.get_type() == LEX_MATRIX)
@@ -1286,8 +1470,7 @@ void Executer::execute(vector <Lex>& poliz)
                         }
                         catch(OpenFileError & of)
                         {
-                            of.debug_print();
-                            throw str;
+                            throw Error("Can't open file: ", str);
                         }
                     }
                     else if (op.get_type() == LEX_VECTOR)
@@ -1298,8 +1481,7 @@ void Executer::execute(vector <Lex>& poliz)
                         }
                         catch (OpenFileError &of)
                         {
-                            of.debug_print();
-                            throw str;
+                            throw Error("Can't open file: ", str);
                         }
                     }
                     else
@@ -1307,8 +1489,7 @@ void Executer::execute(vector <Lex>& poliz)
                         FILE* file = fopen(strings[str.get_value()].c_str(), "wa");
                         if (file == NULL)
                         {
-                            cout << "Can't open file '" << strings[str.get_value()] << "'\n";
-                            throw str;
+                            throw Error("Can't open file: ", str);
                         }
                         if (op.get_type() == LEX_INTEGER)
                         {
@@ -1325,7 +1506,9 @@ void Executer::execute(vector <Lex>& poliz)
                             delete[]str;
                         }
                         else 
-                            throw op;
+                        {
+                            throw Error("Unknown operand type: ", op);
+                        }
                     }
                 } // LEX_WRITE
                 break; 
@@ -1336,10 +1519,14 @@ void Executer::execute(vector <Lex>& poliz)
                     Lex op = args.top();
                     args.pop();
                     if (str.get_type() != LEX_STRING)
-                        throw str;
+                    {
+                        throw Error("Expected argument of type 'string' instead of: ", str);
+                    }
                     if (op.get_type() != LEX_ID)
-                        throw op;
-                    Ident id = TID[op.get_value()];
+                    {
+                        throw Error("Expected identeficator for 'read' fuction instead of: ", op);
+                    }
+                    Ident &id = TID[op.get_value()];
                     switch(id.get_type())
                     {
                         case LEX_MATRIX:
@@ -1351,8 +1538,11 @@ void Executer::execute(vector <Lex>& poliz)
                                 }
                                 catch(OpenFileError &ofr)
                                 {
-                                    ofr.debug_print();
-                                    throw str;
+                                    throw Error("Can't open file: ", str);
+                                }
+                                catch(WrongLexeme & wr)
+                                {
+                                    throw Error("Can't read matrixin file: ", str);
                                 }
                             }
                             break;
@@ -1365,19 +1555,30 @@ void Executer::execute(vector <Lex>& poliz)
                                 }
                                 catch (OpenFileError &of)
                                 {
-                                    of.debug_print();
-                                    throw str;
+                                    throw Error("Can't open file: ", str);
+                                }
+                                catch (WrongLexeme& wr)
+                                {
+                                    throw Error("Can't read vectort in file: ", str);
                                 }
                             }
                             break;
                         case LEX_RATIONAL:
                             {
-                                Scanner scan(strings[str.get_value()].c_str());
+                                FILE* file = fopen(strings[str.get_value()].c_str(), "r");
+                                if (file == NULL)
+                                {
+                                    throw Error("Can't open file: ", str);
+                                }
+                                Scanner scan(file);
                                 Lex l = scan.get_lex();
                                 if (l.get_type() != LEX_RATIO_NUM)
-                                    throw l;
+                                {
+                                    throw Error("Can't read rational number in file: ", str);
+                                }
                                 put_value(ratios, ratios[l.get_value()], id);
                                 remove_value(ratios, l.get_value());
+                                fclose(file);
                             }
                             break;
                         default:
@@ -1385,19 +1586,24 @@ void Executer::execute(vector <Lex>& poliz)
                                 FILE* file = fopen(strings[str.get_value()].c_str(), "r");
                                 if (file == NULL)
                                 {
-                                    cout << "Can't open file '"<< strings[str.get_value()] << "'.\n";
-                                    throw str;
+                                    throw Error("Can't open file: ", str);
                                 }
                                 if (id.get_type() == LEX_INTEGER)
                                 {
                                     int val;
+                                    errno = 0;
                                     fscanf(file, "%d", &val);
+                                    if (errno) 
+                                        throw Error("Can't read integer in file: ", str);
                                     put_value(ints, val, id);
                                 }
                                 if (id.get_type() == LEX_FLOAT)
                                 {
                                     double val;
+                                    errno = 0;
                                     fscanf(file, "%lf", &val);
+                                    if (errno)
+                                        throw Error("Can't read float in file: ", str);
                                     put_value(doubles, val, id);
                                 }
                                 else 
@@ -1415,12 +1621,15 @@ void Executer::execute(vector <Lex>& poliz)
                     if (mtr.get_type() == LEX_ID)
                     {
                         Ident id = TID[mtr.get_value()];
-                        if (!id.is_assigned()) throw mtr;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", mtr);
                         mtr = Lex(id.get_type(), id.get_value(), mtr.get_column(), mtr.get_row());
                     }
 
                     if (mtr.get_type() != LEX_MATRIX)
-                        throw mtr;
+                    {
+                        throw Error("Excepted operand of type 'matrix' instead of: ", mtr);
+                    }
                     int col = current_lex.get_column();
                     int row = current_lex.get_row();
 
@@ -1435,8 +1644,8 @@ void Executer::execute(vector <Lex>& poliz)
                     }
                     catch (OutOfRangeMatrix &ofm)
                     {
-                        ofm.debug_print();
-                        throw current_lex;
+                        string err = "Out of range matrix of row: " + to_string(row) + "and col: " + to_string(col);
+                        throw Error(err, mtr);
                     }
                 } // POLIZ_MTR_EL
                 break;
@@ -1462,8 +1671,8 @@ void Executer::execute(vector <Lex>& poliz)
                     }
                     catch (OutOfRangeVector & ofv)
                     {
-                        ofv.debug_print();
-                        throw current_lex;
+                        string err = "Out of range vector of element: " + to_string(coord);
+                        throw Error(err, vec);
                     }
                 } // POLIZ_VEC_EL
                 break;
@@ -1474,7 +1683,8 @@ void Executer::execute(vector <Lex>& poliz)
                     if (op.get_type() == LEX_ID)
                     {
                         Ident id = TID[op.get_value()];
-                        if (!id.is_assigned()) throw op;
+                        if (!id.is_assigned()) 
+                            throw Error("Not assigned identificator: ", op);
                         op = Lex (id.get_type(), id.get_value(), op.get_column(), op.get_row());
                     }
                     if (op.get_type() == LEX_RATIONAL)
@@ -1485,11 +1695,13 @@ void Executer::execute(vector <Lex>& poliz)
                     //else if (op.get_type() == LEX_MATRIX) WTF??? 
                     //else if (op.get_type() == LEX_VECTOR) WTF???
                     else
-                        throw op;
+                    {
+                        throw Error("Operand can'be made canonical: ", op);
+                    }
                 }
                 break;
             default:
-                throw current_lex;
+                throw Error("Unknow lexeme: ", current_lex);
                 break;
         } //switch
         index++;
@@ -1511,224 +1723,119 @@ void Executer::put_value(vector<T>& vec, T& value, Ident& id)
 
 void Executer::check_assignment(Ident& lv, Lex& rv)
 {
-    switch(rv.get_value())
+    if (rv.get_type() == LEX_ID)
     {
-        case LEX_ID:
-        {
-            Ident id = TID[rv.get_value()];
-            if (!id.is_assigned())
-                throw lv;
-            if (lv.get_type() == LEX_MATRIX)
-            { 
-                if (id.get_type() == lv.get_type())
+        Ident id = TID[rv.get_value()];
+        if (!id.is_assigned())
+            throw Error("Not assigned identificator: ", rv);
+        rv = Lex(id.get_type(), id.get_value(), rv.get_column(), rv.get_row());
+    }
+    switch(lv.get_type())
+    {
+        case LEX_INTEGER:
                 {
-                    put_value(matrixes, matrixes[id.get_value()], lv);
-                }
-                else if (id.get_type() == LEX_VECTOR)
-                {
-                    Matrix mtr = vectors[id.get_value()];
-                    put_value(matrixes, mtr, lv);
-                }
-                else
-                    throw lv;
-            }
-            else if (lv.get_type() == LEX_VECTOR)
-            {
-                if (id.get_type() != lv.get_type())
-                    throw id;
-                put_value(vectors, vectors[id.get_value()], lv);
-            }
-            else
-            {
-                if (id.get_type() == LEX_VECTOR ||
-                    id.get_type() == LEX_MATRIX)
-                    throw id;
-                if (lv.get_type() == LEX_RATIONAL)
-                {
-                    switch (id.get_type())
+                    switch(rv.get_type())
                     {
-                        case LEX_RATIONAL:
-                            put_value(ratios, ratios[id.get_value()], lv);
-                            break;
-                        case LEX_FLOAT:
-                            {
-                                Rational_number ratio = doubles[id.get_value()];
-                                put_value(ratios, ratio, lv);
-                            }
-                            break;
-                        case LEX_INTEGER:
-                            {
-                                Rational_number ratio = ints[id.get_value()];
-                                put_value(ratios, ratio, lv);
-                            }
-                            break;
-                        default:
-                            throw id;
-                            break;
-                    }
-                }
-                else if (lv.get_type() == LEX_INTEGER)
-                {
-                    switch (id.get_type())
-                    {
-                        case LEX_RATIONAL:
-                            {
-                                int i = (int)ratios[id.get_value()];
-                                put_value(ints, i, lv);
-                            }
-                            break;
-                        case LEX_FLOAT:
-                            {
-                                int i = doubles[id.get_value()];
-                                put_value(ints, i, lv);
-                            }
-                            break;
-                        case LEX_INTEGER:
-                            {
-                                put_value(ints, ints[id.get_value()], lv);
-                            }
-                            break;
-                        default:
-                            throw id;
-                            break;
-                    }
-
-                }
-                else if (lv.get_type() == LEX_FLOAT)
-                {
-                    switch (id.get_type())
-                    {
-                        case LEX_RATIONAL:
-                            {
-                                double i = (double)ratios[id.get_value()];
-                                put_value(doubles, i, lv);
-                            }
-                            break;
-                        case LEX_FLOAT:
-                            {
-                                double i = doubles[id.get_value()];
-                                put_value(doubles, i, lv);
-                            }
-                            break;
-                        case LEX_INTEGER:
-                            {
-                                double i = ints[id.get_value()];
-                                put_value(doubles,i, lv);
-                            }
-                            break;
-                        default:
-                            throw id;
-                            break;
-                    }
-
-                }
-                else throw id;
-            } // if id.type is number
-
-        }// case LEX_ID
-        case LEX_INTEGER: case LEX_NUM:
-                {
-                    switch(lv.get_type())
-                    {
-                        case LEX_INTEGER:
+                        case LEX_INTEGER: case LEX_NUM:
                             put_value(ints, ints[rv.get_value()], lv);
                             break;
-                        case LEX_RATIONAL:
-                            {
-                                Rational_number rat = ints[rv.get_value()];
-                                put_value(ratios, rat, lv);
-                            }
-                            break;
-                        case LEX_FLOAT:
-                            {
-                                double i = ints[rv.get_value()];
-                                put_value(doubles, i, lv);
-                            }
-                            break;
-                        default:
-                            throw lv;
-                            break;
-                    }
-                }
-                break;
-        case LEX_RATIONAL: case LEX_RATIO_NUM:
-                {
-                    switch(lv.get_type())
-                    {
-                        case LEX_INTEGER:
+                        case LEX_RATIONAL: case LEX_RATIO_NUM:
                             {
                                 int i = (int)ratios[rv.get_value()];
                                 put_value(ints, i, lv);
                             }
                             break;
-                        case LEX_RATIONAL:
+                        case LEX_FLOAT: case LEX_FLOAT_NUM:
+                            {
+                                int i = doubles[rv.get_value()];
+                                put_value(ints, i, lv);
+                            }
+                            break;
+                        default:
+                            throw Error("Wrong right operand type. Expected number instead of: ", rv);
+                            break;
+                    }
+                }
+                break;
+        case LEX_RATIONAL: 
+                {
+                    switch(rv.get_type())
+                    {
+                        case LEX_INTEGER: case LEX_NUM:
+                            {
+                                Rational_number i = ints[rv.get_value()];
+                                put_value(ratios, i, lv);
+                            }
+                            break;
+                        case LEX_RATIONAL: case LEX_RATIO_NUM:
                             {
                                 Rational_number rat = ratios[rv.get_value()];
                                 put_value(ratios, rat, lv);
                             }
                             break;
-                        case LEX_FLOAT:
+                        case LEX_FLOAT: case LEX_FLOAT_NUM:
                             {
-                                double i =(double) ratios[rv.get_value()];
-                                put_value(doubles, i, lv);
+                                Rational_number i = doubles[rv.get_value()];
+                                put_value(ratios, i, lv);
                             }
                             break;
                         default:
-                            throw lv;
+                            throw Error("Wrong right operand type. Expected number instead of: ", rv);
                             break;
                     }
                 }
                 break;
-        case LEX_FLOAT: case LEX_FLOAT_NUM:
+        case LEX_FLOAT:
                 {
-                    switch(lv.get_type())
+                    switch(rv.get_type())
                     {
-                        case LEX_INTEGER:
+                        case LEX_INTEGER: case LEX_NUM:
                             {
-                                int i = (int)doubles[rv.get_value()];
-                                put_value(ints, i, lv);
+                                double i = ints[rv.get_value()];
+                                put_value(doubles, i, lv);
                             }
                             break;
-                        case LEX_RATIONAL:
+                        case LEX_RATIONAL: case LEX_RATIO_NUM:
                             {
-                                Rational_number rat = doubles[rv.get_value()];
-                                put_value(ratios, rat, lv);
+                                double i = (double)ratios[rv.get_value()];
+                                put_value(doubles, i, lv);
                             }
                             break;
-                        case LEX_FLOAT:
+                        case LEX_FLOAT: case LEX_FLOAT_NUM:
                             {
                                 double i = doubles [rv.get_value()];
                                 put_value(doubles, i, lv);
                             }
                             break;
                         default:
-                            throw lv;
+                            throw Error("Wrong right operand. Expected number instead of: ", rv);
                             break;
                     }
-                }
-        case LEX_MATRIX:
-                {
-                    if (lv.get_type() != LEX_MATRIX)
-                        throw rv;
-                    put_value(matrixes, matrixes[rv.get_value()], lv);
                 }
                 break;
         case LEX_VECTOR:
                 {
-                    if (lv.get_type() == LEX_MATRIX)
+                    if (rv.get_type() != LEX_VECTOR)
+                        throw Error("Wrong right operand. Expected 'vector' instead of: ", rv);
+                    put_value(vectors, vectors[rv.get_value()], lv);
+                }
+                break;
+        case LEX_MATRIX:
+                {
+                    if (rv.get_type() == LEX_VECTOR)
                     {
-                        Matrix mtr = vectors[rv.get_value()];
+                        Matrix mtr = Matrix(vectors[rv.get_value()], Horizontal);
                         put_value(matrixes, mtr, lv);
                     }
-                    else if (lv.get_type() == LEX_VECTOR)
-                        put_value(vectors, vectors[rv.get_value()], lv);
+                    else if (rv.get_type() == LEX_MATRIX)
+                        put_value(matrixes, matrixes[rv.get_value()], lv);
                     else
-                        throw rv;
+                        throw Error("Wrong right operand. Expected 'matrix' or 'vector' instead of: ", rv);
 
                 }
                 break;
          default:
-                throw rv;
+                throw "Unknown type of left operand: ";
                 break;         
     }//switch
 
@@ -1742,14 +1849,14 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
     {
         Ident id = TID[lv.get_value()];
         if (!id.is_assigned())
-            throw lv;
+            throw Error("Not assigned identificator: ", lv);
         lv = Lex(id.get_type(), id.get_value(), lv.get_column(), lv.get_row());
     }
     if (rv.get_type() == LEX_ID)
     {
         Ident id = TID[rv.get_value()];
         if (!id.is_assigned())
-            throw rv;
+            throw Error("Not assigned identificator: ", rv);
         rv = Lex(id.get_type(), id.get_value(), lv.get_column(), lv.get_row());
     }
     switch(lv.get_type())
@@ -1781,7 +1888,7 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                             result -= (int) ratios[rv.get_value()];
                         break;
                     default:
-                        throw rv;
+                        throw Error("Wrong right operand. Expected number instead of: ", rv);
                         break;
                 }
 
@@ -1818,7 +1925,7 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                             result -= (double) ratios[rv.get_value()];
                         break;
                     default:
-                        throw rv;
+                        throw Error("Wrong right operand. Expected number instead of: ", rv);
                         break;
                 }
 
@@ -1854,7 +1961,7 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                             result -= ratios[rv.get_value()];
                         break;
                     default:
-                        throw rv;
+                        throw Error("Wrong right operand. Expected number instead of: ", rv);
                         break;
                 }
 
@@ -1877,8 +1984,7 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                     }
                     catch(WrongMatrixSize& wrm)
                     {   
-                        wrm.debug_print();
-                        throw rv;
+                        throw Error("Left matrix don't have equal size to right vector: ", rv);
                     }
                 }
                 else if (rv.get_type() == LEX_MATRIX)
@@ -1892,12 +1998,11 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                     }
                     catch(WrongMatrixSize &wrm)
                     {
-                        wrm.debug_print();
-                        throw rv;
+                        throw Error("Right matrix don't have equal size to left one: ", rv);
                     }
                 }
                 else 
-                    throw rv;
+                    throw Error("Expected right operand of type 'vector' or 'matrix' instead of: ", rv);
                 adress = add_value(matrixes, result);
                 res.set_type(LEX_MATRIX);
                 res.set_value(adress);
@@ -1917,19 +2022,18 @@ Lex Executer::check_add_sub(Lex& lv,Lex& rv, char op)
                     }
                     catch(WrongVectorSize& wrv)
                     {   
-                        wrv.debug_print();
-                        throw rv;
+                        throw Error("Not equal size of right vector to left one: ", rv);
                     }
                 }
                 else
-                    throw rv;
+                    throw Error("Expected right operand of type 'vector' instead of: ", rv);
                 adress = add_value(vectors, result);
                 res.set_type(LEX_VECTOR);
                 res.set_value(adress);
             }
             break;
         default:
-            throw lv;
+            throw Error("Unknown type of left operand: ", lv);
             break;
     }// switch for lv
     res.set_column(lv.get_column());
@@ -1946,7 +2050,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
     {
         Ident id = TID[lv.get_value()];
         if (!id.is_assigned())
-            throw lv;
+            throw Error("Not assigned identificator: ", lv);
         lv = Lex(id.get_type(), id.get_value(), lv.get_column(), lv.get_row());
     }
 
@@ -1954,7 +2058,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
     {
         Ident id = TID[rv.get_value()];
         if (!id.is_assigned())
-            throw rv;
+            throw Error("Not assigned identificator: ", rv);
         rv = Lex(id.get_type(), id.get_value(), rv.get_column(), rv.get_row());
     }
 
@@ -2005,7 +2109,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Unknown type of right operand: ", rv);
                         break;
 
                 } //switch fo rv
@@ -2055,7 +2159,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Unknown type of right operand: ", rv);
                         break;
 
                 } //switch fo rv
@@ -2104,7 +2208,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Unknown type of right operand: ", rv);
                         break;
 
                 } //switch fo rv
@@ -2120,8 +2224,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                     }
                     catch (WrongVectorSize& wrv)
                     {
-                        wrv.debug_print();
-                        throw rv;
+                        throw Error("Size of right vector must be equal to left one: ", rv);
                     }
                     adress = add_value(ratios, result);
                     res.set_type(LEX_RATIONAL);
@@ -2136,8 +2239,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                     }
                     catch (WrongMatrixSize& wrm)
                     {
-                        wrm.debug_print();
-                        throw rv;
+                        throw Error("Number of right matrix columns must be 1: ", rv);
                     }
                     adress = add_value(matrixes, result);
                     res.set_type(LEX_MATRIX);
@@ -2158,7 +2260,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                             result *= ratios[rv.get_value()];
                             break;
                         default:
-                            throw rv;
+                            throw Error("Unknown type of right operand: ", rv);
                             break;
                     }
 
@@ -2179,8 +2281,8 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                     }
                     catch (WrongMatrixSize& wrm)
                     {
-                        wrm.debug_print();
-                        throw rv;
+                        throw Error("Size of right vector must be equal to number of rows of left matrix: ",
+                                    rv);
                     }
                 }
                 else if (rv.get_type() == LEX_MATRIX)
@@ -2191,8 +2293,8 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                     }
                     catch (WrongMatrixSize& wrm)
                     {
-                        wrm.debug_print();
-                        throw rv;
+                        throw Error("Size of right matrix columns must be equal to number of rows of left one: ",
+                                    rv);
                     }
                 }
                 else
@@ -2209,7 +2311,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
                             result *= ratios[rv.get_value()];
                             break;
                         default:
-                            throw rv;
+                            throw Error("Unknown type of right operand: ", rv);
                             break;
                     }
                 }
@@ -2220,7 +2322,7 @@ Lex Executer::check_mul(Lex& lv, Lex& rv)
             }
             break; // LEX_VECTOR
         default:
-            throw lv;
+            throw Error("Unknown type of left operand: ", lv);
             break;
     } // switch for lv
 
@@ -2257,6 +2359,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                 {
                     case LEX_INTEGER:
                         {
+                            if (!ints[rv.get_value()])
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             int result = ints[lv.get_value()] / ints[rv.get_value()];
                             adress = add_value(ints, result);
                             res.set_type(LEX_INTEGER);
@@ -2265,6 +2370,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         break;
                     case LEX_FLOAT:
                         {
+                            if (!doubles[rv.get_value()])
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             int result = ints[lv.get_value()] / doubles[rv.get_type()];
                             adress = add_value(ints, result);
                             res.set_type(LEX_INTEGER);
@@ -2273,6 +2381,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         break;
                     case LEX_RATIONAL:
                         {
+                            if (ratios[rv.get_value()] == 0)
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             int result = ints[lv.get_value()] / (int)ratios[rv.get_type()];
                             adress = add_value(ints, result);
                             res.set_type(LEX_INTEGER);
@@ -2280,7 +2391,7 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Expected number of right operand instead of: ", rv);
                         break;
 
                 } //switch fo rv
@@ -2291,6 +2402,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                 {
                     case LEX_INTEGER:
                         {
+                            if (!ints[rv.get_value()])
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             double result = doubles[lv.get_value()] / ints[rv.get_value()];
                             adress = add_value(doubles, result);
                             res.set_type(LEX_FLOAT);
@@ -2299,6 +2413,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         break;
                     case LEX_FLOAT:
                         {
+                            if (!doubles[rv.get_value()])
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             double result = doubles[lv.get_value()] / doubles[rv.get_type()];
                             adress = add_value(doubles, result);
                             res.set_type(LEX_FLOAT);
@@ -2307,6 +2424,9 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         break;
                     case LEX_RATIONAL:
                         {
+                            if (ratios[rv.get_value()] == 0)
+                                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                             double result = doubles[lv.get_value()] / (double)ratios[rv.get_type()];
                             adress = add_value(doubles, result);
                             res.set_type(LEX_FLOAT);
@@ -2314,7 +2434,7 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Expected number as right operand instead of: ", rv);
                         break;
 
                 } //switch fo rv
@@ -2350,15 +2470,15 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                         }
                         break;
                     default:
-                        throw rv;
+                        throw Error("Expected number as right operand instead of: ", rv);
                         break;
 
                 } //switch fo rv
             }
             catch(Zerodivide &zr)
             {
-                zr.debug_print();
-                throw rv;
+                throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
             }
             break; // LEX_RATIONAL
         case LEX_VECTOR:
@@ -2378,14 +2498,14 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                             result /= ratios[rv.get_value()];
                             break;
                         default:
-                            throw rv;
+                            throw Error("Expected number as right operand instead of: ", rv);
                             break;
                     }
                 }
                 catch (Zerodivide& zr)
                 {
-                    zr.debug_print();
-                    throw rv;
+                    throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                 }
 
                 adress = add_value(vectors, result);
@@ -2411,14 +2531,14 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
                             result /= ratios[rv.get_value()];
                             break;
                         default:
-                            throw rv;
+                            throw Error("Expected number as right operand instead of: ", rv);
                             break;
                     }
                 }
                 catch (Zerodivide &zr)
                 {
-                    zr.debug_print();
-                    throw rv;
+                    throw Error("Right operand of division equals to zero: ", 
+                                            Lex(LEX_NONE, rv.get_column(), rv.get_row()));
                 }
                 adress = add_value(matrixes, result);
                 res.set_type(LEX_MATRIX);
@@ -2427,7 +2547,7 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
             }
             break; // LEX_VECTOR
         default:
-            throw lv;
+            throw Error("Unknown type of left operand: ", lv);
             break;
     } // switch for lv
 
@@ -2444,24 +2564,62 @@ Lex Executer::check_div(Lex& lv, Lex& rv)
 
 int main (int argc, char* argv[])
 {
+    FILE* file;
     if (argc < 2)
-        return 1;
+    {
+        file = stdin;
+    }
+    else
+    {
+        file = fopen(argv[1], "r");
+        if (!file)
+        {
+            cout << COLOR_RED << "error: " << COLOR_CLEAR << endl;
+            cout << "Can't open execution file: " << argv[1] << endl;
+            return 1;
+        }
+    }
     try
     {
-        Parser pars(argv[1]);
+        Parser pars(file);
         pars.analyse();
         Executer ex;
         ex.execute(pars.poliz);
     }
-    catch (char c)
+    catch (Error& err)
     {
+        cerr << argv[1] << ":" << err.lex.get_row()<< ":" << err.lex.get_column() << ":";
+        cerr << COLOR_RED << " error: " << COLOR_CLEAR << endl;
+        cerr << err.reason << err.lex << endl;
+
+        string str;
+        if (file == stdin) return 1;
+        fseek(file, 0, SEEK_SET);
+        for (int i = 1; i < err.lex.get_row(); i++)
+        {
+            int ch = fgetc(file);
+            while (ch != '\n')
+                ch = fgetc(file);
+        }
+        while (1)
+        {
+            char ch = fgetc(file);
+            if (ch == '\n' || ch == EOF)
+                break;
+            str.push_back((char)ch);
+        }
+
+        cerr << str << endl;
+
+        for (int i = 1; i < err.lex.get_column(); i++)
+            cerr << " ";
+        cerr << COLOR_GREEN << "^" << COLOR_CLEAR << endl;
+        
+        //if (file != stdin)
+        fclose(file);
         return 1;
     }
-    catch (Lex l)
-    {
-        cout << l << " col: " << l.get_column() << " row: " << l.get_row() << endl;
-        return 2;
-    }
-
+    if (file != stdin)
+        fclose(file);
     return 0;
 }
