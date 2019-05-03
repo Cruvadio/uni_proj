@@ -12,6 +12,7 @@
 
 
 #define COLOR_RED "\x1b[31;1m"
+#define COLOR_WHITE "\x1b[37;2m"
 #define COLOR_CLEAR "\x1b[0m"
 #define COLOR_GREEN "\x1b[32;1m"
 
@@ -74,6 +75,8 @@ class Lex
             col = l.col;
             row = l.row;
         }
+
+        operator string();
         lex_type get_type() const { return type;}
         int get_value() const { return value;}
         
@@ -468,7 +471,37 @@ Lex Scanner::get_lex()
     } // do while
     while (true);
 }
+Lex::operator string()
+{
+    string t;
 
+    if (type == LEX_NONE)
+        return t;
+    else if (type <= LEX_COL)
+        t = Scanner::DEFINED_WORDS[type];
+    else if (type >= LEX_COLON && type <= LEX_COMA)
+        t = Scanner::DEFINED_SIGNS[type - LEX_FIN];
+    else if (type == LEX_NUM)
+    {
+        t = to_string(ints[value]);
+    }
+    else if (type == LEX_FLOAT_NUM)
+        t = to_string(doubles[value]);
+    else if (type == LEX_RATIO_NUM)
+    {
+        char *str = ratios[value].to_string();
+        t = str;
+        delete[]str;
+    }
+    else if (type == LEX_ID)
+        t = TID[value].get_name();
+    else if (type == LEX_STRING)
+        t = strings[value];
+    else if (type == LEX_FIN)
+        t = "END";
+
+    return t;
+}
 ostream& operator << (ostream& os, const Lex& lex)
 {
     string t;
@@ -715,8 +748,8 @@ void Parser::OPS()
     {
         if (current_lex.get_type() == LEX_FIN)
         {
-            current_lex.set_row(current_lex.get_row() - 2);
-            throw Error("expected ';' or another operator instead of: ", current_lex);
+            //current_lex.set_row(current_lex.get_row() - 1);
+            throw Error("Expected ';' or another operator instead of: ", current_lex);
         }
         gl();
         OP();
@@ -2679,8 +2712,14 @@ int main (int argc, char* argv[])
         else
             for (int i = 1; i < err.lex.get_column(); i++)
                 cerr << " ";
-        cerr << COLOR_GREEN << "^" << COLOR_CLEAR << endl;
+        cerr << COLOR_GREEN << "^";
         
+        if (err.lex.get_type() != LEX_FIN)
+        {
+            for (int i = 1; i < (int) ((string)err.lex).size(); i++)
+                cerr << "~";
+        }
+        cerr << COLOR_CLEAR << endl;
         //if (file != stdin)
         fclose(file);
         return 1;

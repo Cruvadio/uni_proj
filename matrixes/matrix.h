@@ -166,7 +166,7 @@ class Vector
     int references;
 
     void calculations (Vector& vec,Node<Rational_number>* q, char op) const;
-    void dot_product(Rational_number& rat, Node<Rational_number>* p, Node<Rational_number>* q) const;
+    void dot_product(Rational_number& rat, Node<Rational_number>* p,const Vector& vec) const;
     void calculations(Vector& vec,Rational_number rat, Node<Rational_number>* q, char op) const;
     void copy (Node<Rational_number>* p);
     void remove_all(Node<Rational_number>* p);
