@@ -2714,7 +2714,7 @@ int main (int argc, char* argv[])
                 cerr << " ";
         cerr << COLOR_GREEN << "^";
         
-        if (err.lex.get_type() != LEX_FIN)
+        if (err.lex.get_type() == LEX_ID || err.lex.get_type() == LEX_STRING)
         {
             for (int i = 1; i < (int) ((string)err.lex).size(); i++)
                 cerr << "~";
