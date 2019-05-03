@@ -5,7 +5,6 @@
 #include <queue>
 #include <algorithm>
 #include <string>
-#include <unistd.h>
 #include <iostream>
 #include <fstream>
 #include <typeinfo>
@@ -122,7 +121,11 @@ class Ident
         {
             return name == str;
         }
-
+        
+        bool operator ==(const Ident& id)
+        {
+            return name == id.name;
+        }
         string get_name () { return name;}
         lex_type get_type() {return type;}
         bool is_declared () { return declare;}
@@ -549,7 +552,7 @@ class Parser
     void OBJECT();
     void FUNC();
 
-    void declare (lex_type type, int adress);
+    void declare (lex_type type, Lex id);
     void check_id();
     void check_op();
     void gl()
@@ -624,7 +627,7 @@ void Parser::DECLARE()
     do
     {
         ID();
-        declare(lexes.top().get_type(), current_lex.get_value());
+        declare(lexes.top().get_type(), current_lex);
         gl();
     }
     while(current_lex.get_type() == LEX_COMA);
@@ -948,10 +951,12 @@ void Parser::check_id()
     }
 }
 
-void Parser::declare(lex_type type, int adress)
+void Parser::declare(lex_type type, Lex id)
 {
-    TID[adress].put_declare();
-    TID[adress].put_type(type);
+    if (TID[id.get_value()].is_declared())
+        throw Error("Already declared identificator: ", id);
+    TID[id.get_value()].put_declare();
+    TID[id.get_value()].put_type(type);
 }
 
 void Parser::FUNC()
@@ -2643,7 +2648,7 @@ int main (int argc, char* argv[])
     }
     catch (Error& err)
     {
-        cerr << argv[1] << ":" << err.lex.get_row()<< ":" << err.lex.get_column() << ":";
+        cerr << ((argc < 2) ? "stdin" : argv[1]) << ":" << err.lex.get_row()<< ":" << err.lex.get_column() << ":";
         cerr << COLOR_RED << " error: " << COLOR_CLEAR << endl;
         cerr << err.reason << err.lex << endl;
 
