@@ -618,7 +618,7 @@ Vector operator* (const Vector& lv, const Matrix& rv)
 
     for (unsigned int i = 0; i < vec.get_size(); i++)
     {
-        Matrix_col_coord col = {i};
+        Matrix_col_coord col(i);
         vec(i) = lv * rv[col];
     }
 
