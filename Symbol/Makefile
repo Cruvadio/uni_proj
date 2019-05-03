@@ -8,5 +8,5 @@ ifeq ($(UNAME_S), Darwin)
 	CFLAGS=-framework OpenGl -framework GLUT -g -lm
 endif
 
-Symbol: symbol.cpp
+symbol: symbol.cpp
 	$(CC) $^ -o $@ $(CFLAGS)

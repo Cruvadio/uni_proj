@@ -11,23 +11,33 @@
 using namespace std;
 
 #define WIDTH 1200
-#define HEIGHT 480
+#define HEIGHT 800
 
-#define A -2.5
-#define B 2.5
+#define A -1.5
+#define B 1.5
 #define C -1
 #define D 1
 
 #define K 100
 
-#define DELTA 0.5
 
-const int number_of_cells = ((B - A) * (D - C))/ (DELTA * DELTA);
+double DELTA = 0.125;
+
+int n = 1;
 const int cols = (B - A) / DELTA;
 const int rows = (D - C) / DELTA;
+const int number_of_cells = cols * rows;
+
 
 int Scale = WIDTH * 2 / cols ;
 vector<vector<int> > grid(number_of_cells), gr(number_of_cells); 
+
+
+void keyboard (unsigned char key, int x, int y)
+{
+    if (key == '\033')
+        exit(0);
+}
 
 void henon (double &xn, double &yn)
 {
@@ -36,13 +46,13 @@ void henon (double &xn, double &yn)
     double x = xn;
     double y = yn;
 
-    xn = 1 - a* (x * x) + y;
+    xn = 1.0 - a* (x * x) + y;
     yn = b * x;
 }
 
 int return_cell (double x, double y)
 {
-    return (int)abs((y - D)/DELTA) * cols + (int)abs((x - A)/DELTA);
+    return (int)abs((double)(y - D)/DELTA) * cols + (int)abs((double)(x - A)/DELTA);
 }
 
 void interval (int cell, double& x1, double& y1)
@@ -98,7 +108,7 @@ void find_components ()
             component.clear();
         }
     }
-
+/*
     for (vector<int>comp : components)
     {
         for (int i : comp)
@@ -106,7 +116,7 @@ void find_components ()
             cout << i << " ";
         }
         cout << endl;
-    }
+    }*/
 }
 
 void make_graph()
@@ -115,27 +125,30 @@ void make_graph()
     {
         double x1, y1;
         interval(i, x1, y1);
-        cout << i << endl;
-        for (int k = 0; k < K; k++)
+        //cout << i << endl;
+        //cout << "x1 = "<< x1 << " y1 = "<< y1;
+        for (int k = 1; k <= K; k++)
         {
-            double x = x1 + (double)k / K;
-            double y = y1 + (double)k / K;
+            double x = x1 + (double)k * DELTA/ (double)K;
+            double y = y1 - (double)k * DELTA/ (double)K;
 
             henon(x, y);
             
-            if (x < A || x > B || y < C || y > D)
+            if (x <= A || x >= B || y <= C || y >= D)
                 continue;
 
             int cell = return_cell(x , y);
+            /*
             cout << cell << " ";
-            
+            */
             if (find(grid[i].begin(), grid[i].end(), cell) == grid[i].end())
             {
                 grid[i].push_back(cell);
                 gr[cell].push_back(i);
             }
         }
-        cout << endl;
+
+        //cout << endl;
     }
 
 }
@@ -175,21 +188,31 @@ void display()
     glClear(GL_COLOR_BUFFER_BIT);
 
     //draw_grid(); 
-    
+    //
     for (vector<int> comp : components)
         for (int v: comp)
         {
             draw_square(v);
         }
-        
-    //for (int i = 0; i <= number_of_cells; i++)
-      //  draw_square(i);
+    
+    glColor3f(0.0, 1.0, 0.0);
+    
     draw_grid();
+
+    glColor3f(1.0, 0.0, 0.0);
+    glBegin(GL_LINES);
+        glVertex2d(WIDTH, HEIGHT * 2);
+        glVertex2d(WIDTH, 0);
+        glVertex2d(WIDTH * 2, HEIGHT);
+        glVertex2d(0, HEIGHT);
+    glEnd();
+
     glFlush();
 }
 
 int main (int argc, char* argv[])
 {
+    cout << number_of_cells << endl;
     grid.resize(number_of_cells);
     gr.resize(number_of_cells);
     grid.assign(number_of_cells, vector<int>(0));
@@ -210,6 +233,7 @@ int main (int argc, char* argv[])
     glOrtho(-WIDTH, WIDTH, HEIGHT, -HEIGHT, -1.0, 1.0);
     glTranslatef(-WIDTH, -HEIGHT, 0);
     glutDisplayFunc(display);
+    glutKeyboardFunc(keyboard);
     glutMainLoop();
 
     return 0;
