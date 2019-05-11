@@ -17,3 +17,6 @@ iteration2: iteration2.cpp
 iteration3: iteration3.cpp
 	$(CC) $^ -o $@ $(CFLAGS)
 
+iteration4: iteration4.cpp
+	$(CC) $^ -o $@ $(CFLAGS)
+
