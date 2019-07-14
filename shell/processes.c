@@ -119,7 +119,6 @@ int launch_job (job *j)
 
     jid = add_job(j);
 
-    printf ("JID = %d\n", jid);
     if (jid == -1)
     {
         fprintf(stderr, "Can not add job\n");
