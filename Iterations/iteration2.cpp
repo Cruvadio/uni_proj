@@ -6,8 +6,10 @@
 
 #include<cmath>
 #include<vector>
+#include<iostream>
+#include <sys/time.h>
 
-using namespace std;
+using std::vector;
 
 #define WIDTH 1280
 #define HEIGHT 720
@@ -48,6 +50,27 @@ struct Point
     Point operator+ (const Point& rv)
     {
         return Point(x + rv.x, y + rv.y);
+    }
+
+    Point operator- (const Point& rv)
+    {
+        return Point(x - rv.x, y - rv.y);
+    }
+
+    bool operator< (Point rv)
+    {
+        return x < rv.x && y < rv.y;
+    }
+
+    bool operator> (Point rv)
+    {
+        return x > rv.x && y > rv.y;
+    }
+
+
+    Point absolute () const
+    {
+        return Point(abs(x), abs(y));
     }
 };
 
@@ -104,6 +127,7 @@ struct Interval
         glVertex2f(begin.x, begin.y);
         glVertex2f(end.x, end.y);
     }
+
 };
 
 void f (Point & p)
@@ -122,8 +146,19 @@ void g (Point& p)
     double x = p.x;
     double y = p.y;
 
-    p.x = x + y + a * x * (1 - x * x);
+    p.x = x + y + a * x * (1 - x *x);
     p.y = y + a * x * (1 - x*x);
+}
+
+void k (Point &p)
+{
+    const double a = 0.4;
+
+    double x = p.x;
+    double y = p.y;
+
+    p.x = x - y;
+    p.y = y - a * p.x * (1 - p.x * p.x);
 }
 
 /*
@@ -136,15 +171,15 @@ Interval f_interval (Interval i, void (*f) (Point&) )
 }*/
 
 
-void partitions (vector<Interval> intervals, vector<Interval> & vec)
+void partitions (vector<Interval> intervals, vector<Interval> & vec, void (*f) (Point& ))
 {
     for (Interval i: intervals)
     {
-        Interval new_i = i.f_interval(g);
+        Interval new_i = i.f_interval(f);
        
         if (new_i > h)
         {
-            partitions(i.return_halfs(), vec);
+            partitions(i.return_halfs(), vec, f);
             
         }
         else
@@ -165,7 +200,7 @@ void partitions (vector<Interval> intervals, vector<Interval> & vec)
 vector<Interval> left;
 vector<Interval> right;
 
-void iterations (Interval start, vector<Interval>& finish)
+void iterations (Interval start, vector<Interval>& finish, void (*f) (Point& ))
 {
     vector<Interval> intervals;
     intervals.push_back(start);
@@ -173,7 +208,7 @@ void iterations (Interval start, vector<Interval>& finish)
 
     for (int i = 0; i < N; i++)
     {
-        partitions(intervals, vec);     
+        partitions(intervals, vec, f);     
 
         /*glBegin(GL_LINE_STRIP);
             glColor3f(0.0, 0.0 + (double)i/N, 0.0);
@@ -208,7 +243,7 @@ void display(void)
         int i = 0;
         for (Interval inter : left)
         {
-            glColor4f(0.0, 0.0, 0.0, 0.25);
+            glColor4f(0.0, 0.0, 0.0, 1.0);
             i++;
             inter.show();
         }
@@ -218,7 +253,7 @@ void display(void)
         i = 0;
         for (Interval inter : right)
         {
-            glColor4f(0.0, 0.0, 0.0, 0.25);
+            glColor4f(1.0, 0.0, 0.0, 1.0);
             i++;
             inter.show();
         }
@@ -227,12 +262,50 @@ void display(void)
     glFlush();
 }
 
+vector<Point> homoclinics;
+
 int main (int argc, char* argv[])
 {
-    Interval line (0.0, 0.0, -1.0, 0.0);
-    iterations(line, left);
-    line.end.x = 1.0;
-    iterations(line, right);
+    Interval line (-0.2, 0.0, 0.2, 0.0);
+
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
+
+    iterations(line, left, g);
+
+
+    //line.end.x = 1.0;
+    //iterations(line, right);
+
+    iterations(line, right, k);
+
+    gettimeofday(&t2, NULL);
+
+    double t = (t2.tv_sec - t1.tv_sec) + (double)(t2.tv_usec - t1.tv_usec) / 1000000;
+    Point delta = Point(0.001, 0.001);
+    
+    
+    //std::cout << left.size() << std::endl;
+    std::cout << N << " " << t << std::endl;
+
+    // for (int i = 0; i < left.size(); i++)
+    // {
+    //     for (int j = 0; j < right.size(); j++)
+    //     {
+    //         if ((left[i].begin - right[j].begin).absolute() < delta)
+    //             homoclinics.push_back(left[i].begin);
+    //         if ((left[i].end - right[i].end).absolute() < delta)
+    //             homoclinics.push_back(left[i].end);
+
+            
+    //     }
+    // }
+
+    // for(auto p : homoclinics)
+    // {
+    //     std::cout << p.x << " " << p.y << std::endl;
+    // }
+
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE);
     glutInitWindowSize(WIDTH, HEIGHT);
@@ -244,6 +317,7 @@ int main (int argc, char* argv[])
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.5, 1.5, -0.5, 0.5, -1, 1);
+    //glScalef(2.0, 2.0, 1.0);
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(display);
     glutMainLoop();

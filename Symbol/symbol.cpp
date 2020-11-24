@@ -7,21 +7,22 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <cstdlib>
 
 using namespace std;
 
-#define WIDTH 1200
-#define HEIGHT 800
+#define WIDTH 940
+#define HEIGHT 840
 
-#define A -1.5
-#define B 1.5
-#define C -1
-#define D 1
+#define A -1.6
+#define B 3.1
+#define C -2
+#define D 2.2
 
 #define K 100
 
 
-double DELTA = 0.125;
+double DELTA = 0.05;
 
 int n = 1;
 const int cols = (B - A) / DELTA;
@@ -39,20 +40,36 @@ void keyboard (unsigned char key, int x, int y)
         exit(0);
 }
 
+double Ikeda (double xn, double yn)
+{
+    return 0.4 - 6.0/(1.0 + xn*xn + yn*yn);
+}
+
 void henon (double &xn, double &yn)
 {
-    const double a = 1.4;
-    const double b = 0.3;
+    // const double a = 1.4;
+    // const double b = 0.3;
+    // double x = xn;
+    // double y = yn;
+
+
+    const double a = -0.9;
+    const double b = 1.2;
+
     double x = xn;
     double y = yn;
 
-    xn = 1.0 - a* (x * x) + y;
-    yn = b * x;
+    // xn = 1.0 - a* (x * x) + y;
+    // yn = b * x;
+
+
+    xn = 1 + a * (x * cos(Ikeda(x, y)) - y * sin(Ikeda(x,y)));
+    yn = b * (x * sin( Ikeda(x, y) ) + y * cos (Ikeda(x, y)));
 }
 
 int return_cell (double x, double y)
 {
-    return (int)abs((double)(y - D)/DELTA) * cols + (int)abs((double)(x - A)/DELTA);
+    return floor(abs((double)(y - D)/DELTA)) * cols + floor(abs((double)(x - A)/DELTA));
 }
 
 void interval (int cell, double& x1, double& y1)
@@ -108,15 +125,17 @@ void find_components ()
             component.clear();
         }
     }
-/*
-    for (vector<int>comp : components)
-    {
-        for (int i : comp)
-        {
-            cout << i << " ";
-        }
-        cout << endl;
-    }*/
+
+    // for (vector<int>comp : components)
+    // {
+    //     for (int i : comp)
+    //     {
+    //         cout << i << " ";
+    //     }
+    //     cout << endl;
+    // }
+    cout << components.size() << endl;
+
 }
 
 void make_graph()
@@ -125,12 +144,16 @@ void make_graph()
     {
         double x1, y1;
         interval(i, x1, y1);
+          int sqrt_K = sqrt(K);
         //cout << i << endl;
         //cout << "x1 = "<< x1 << " y1 = "<< y1;
-        for (int k = 1; k <= K; k++)
+         for (int k = 1; k <= sqrt_K; k++)
+            for (int m = 1; m <= sqrt_K; m++)
         {
-            double x = x1 + (double)k * DELTA/ (double)K;
-            double y = y1 - (double)k * DELTA/ (double)K;
+            double x = x1 + (double)k * DELTA/ (double)sqrt_K;
+            double y = y1 - (double)m * DELTA/ (double)sqrt_K;
+            // double x = x1 + (double)k * DELTA/ (double)K;
+            // double y = y1 - (double)k * DELTA/ (double)K;
 
             henon(x, y);
             
@@ -155,7 +178,6 @@ void make_graph()
 
 void draw_square (int cell)
 {
-    glColor3f(0.0, 0.0, 1.0);
     int row = cell / cols;
     int col = cell % cols;
     glRectf(col * Scale, row * Scale, (col + 1) * Scale, (row + 1) * Scale);
@@ -190,14 +212,17 @@ void display()
     //draw_grid(); 
     //
     for (vector<int> comp : components)
+    {
+        glColor3f(rand() % 255 /(double) 255, rand() % 255 /(double) 255, rand() % 255 /(double) 255);
         for (int v: comp)
         {
             draw_square(v);
         }
+    }
     
     glColor3f(0.0, 1.0, 0.0);
     
-    draw_grid();
+    //draw_grid();
 
     glColor3f(1.0, 0.0, 0.0);
     glBegin(GL_LINES);

@@ -506,7 +506,7 @@ Matrix Matrix::operator^(int pow) const
 
     Matrix mtr(*this);
     
-    for (int i = 0; i < pow; i++)
+    for (int i = 1; i < pow; i++)
         mtr *= *this;
 
     return mtr;

@@ -8,14 +8,16 @@
 #include <sys/time.h>
 #include <vector>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 
 using namespace std;
 
-#define WIDTH 1200
+#define WIDTH 960
 #define HEIGHT 800
 
-#define A -1.5
-#define B 1.5
+#define A -1.2
+#define B 1.2
 #define C -1
 #define D 1
 
@@ -23,7 +25,7 @@ using namespace std;
 
 #define CELLS 2
 
-#define DELTA 0.25
+#define DELTA 0.05
 
 
 
@@ -54,15 +56,25 @@ void skeyboard (int key, int x, int y)
 }
 
 
+
 void henon (double &xn, double &yn)
 {
-    const double a = 1.4;
-    const double b = 0.3;
+    // const double a = -0.5;
+    // const double b = 0;
+    // double x = xn;
+    // double y = yn;
+
+    // xn = x*x - y*y + a;
+    // yn = 2 * x * y + b;
+
+
+    const double n = 1.0;
+
     double x = xn;
     double y = yn;
 
-    xn = 1.0 - a* (x * x) + y;
-    yn = b * x;
+    xn = x * pow(2.0 - x * x, 1.0/(n + 2.0));
+    yn = 0.5 * y;  
 }
 
 int return_cell (double x, double y, int cols,  double delta)
@@ -95,8 +107,11 @@ void dfs2 (int v, vector<vector<int> > &gr, vector<int> &component) {
 	used[v] = true;
 	component.push_back (v);
 	for (size_t i=0; i<gr[v].size(); ++i)
-		if (!used[ gr[v][i] ])
+		{if (!used[ gr[v][i] ])
 			dfs2 (gr[v][i], gr, component);
+            if (gr[v][i] == v)
+            component.push_back(v);
+            }
 }
 
 
@@ -109,6 +124,12 @@ vector<vector<int> > find_components (vector <vector<int> > &grid, vector<vector
     for (int i = 0; i < number_of_cells; i++)
         if (!used[i]) dfs1(i, grid);
     used.assign(number_of_cells, false);
+    
+    
+    //for (int v: order)
+    //{
+      //  cout << v << endl;
+    //}
 
     for (int i = 0; i < number_of_cells; i++)
     {
@@ -123,15 +144,19 @@ vector<vector<int> > find_components (vector <vector<int> > &grid, vector<vector
             component.clear();
         }
     }
-/*
-    for (vector<int>comp : components)
-    {
-        for (int i : comp)
-        {
-            cout << i << " ";
-        }
-        cout << endl;
-    }*/
+
+    // int i = 1;
+    // for (vector<int>comp : components)
+    // {
+    //     cout << i++ << ": " << endl;
+    //     for (int k : comp)
+    //     {
+    //         cout << k << " ";
+    //     }
+    //     cout << endl;
+    // }
+
+    cout << components.size() << endl;
     order.clear();
     return components;
 }
@@ -139,29 +164,43 @@ vector<vector<int> > find_components (vector <vector<int> > &grid, vector<vector
 void make_graph(vector<vector<int> > &graph, vector<vector<int> >& i_graph, int number_of_cells, double delta)
 {
     int cols = (B - A) / delta;
+    int sqrt_K = sqrt(K);
 
+    double d =  delta/ ((double)sqrt_K);
     for (int i = 0; i < number_of_cells; i++)
     {
         double x1, y1;
         interval(i, x1, y1, cols, delta);
-        //cout << i << endl;
-        //cout << "x1 = "<< x1 << " y1 = "<< y1;
-        for (int k = 1; k <= K; k++)
+  //      cout << i << endl;
+ //       cout << "x1 = "<< x1 << " y1 = "<< y1 << endl;
+        for (int k = 1; k <= sqrt_K; k++)
+            for (int m = 1; m <= sqrt_K; m++)
         {
-            double x = x1 + (double)k * delta/ (double)K;
-            double y = y1 - (double)k * delta/ (double)K;
+            double x = x1 + (double)k * d;
+            double y = y1 - (double)m * d;
 
             henon(x, y);
             
-            if (x <= A || x >= B || y <= C || y >= D)
+
+            
+            if (x <= A || x >= B || y <= C || y >= D){
+               // cout << "x = "<< x << " y = "<< y << endl;
+               // cout << "-1" << endl;
                 continue;
+            }
 
             int cell = return_cell(x , y, cols, delta);
-            /*
-            cout << cell << " ";
-            */
+            
+                                      
+            
+            
+            
             if (find(graph[i].begin(), graph[i].end(), cell) == graph[i].end())
             {
+
+                //  cout << "x = "<< x << " y = "<< y << endl;
+                // cout << cell << " " << endl;
+
                 graph[i].push_back(cell);
                 i_graph[cell].push_back(i);
             }
@@ -172,7 +211,22 @@ void make_graph(vector<vector<int> > &graph, vector<vector<int> >& i_graph, int 
 
 }
 
-:vector<vector<int> > approximation (int &scale, int &cols)
+void output_graph(vector<vector<int>> &graph)
+{
+    for (int i = 0; i < graph.size(); i++)
+    {
+        cout << i << ":" << endl;
+        
+        for (int j = 0; j < graph[i].size(); j++)
+        {
+            cout << graph[i][j] << ", ";
+        }
+        
+        cout << endl;
+    }
+}
+
+vector<vector<int> > approximation (int &scale, int &cols)
 {
     double delta = DELTA;
 
@@ -188,13 +242,15 @@ void make_graph(vector<vector<int> > &graph, vector<vector<int> >& i_graph, int 
     vector <vector <int> > i_graph (number_of_cells);
 
     make_graph(graph, i_graph, number_of_cells, delta);
+    
+    output_graph(graph);
 
     return find_components(graph, i_graph, number_of_cells);
 }
 
 void draw_square (int cell, int scale,int cols)
 {
-    glColor3f(0.0, 0.0, 1.0);
+ 
     int row = cell / cols;
     int col = cell % cols;
     glRectf(col * scale, row * scale, (col + 1) * scale, (row + 1) * scale);
@@ -234,11 +290,13 @@ void display()
     int scale, cols;
     vector<vector<int> > components = approximation(scale, cols);
     for (vector<int> component : components)
+    {
+           glColor3f(rand() % 255 /(double) 255, rand() % 255 /(double) 255, rand() % 255 /(double) 255);
         for (int v: component)
         {
             draw_square(v, scale, cols);
         }
-    
+    }
 
     glColor3f(0.0, 1.0, 0.0);
 
@@ -247,8 +305,8 @@ void display()
     
     printf("%lf\n", t);
 
-    if (n < 6)
-    draw_grid(scale);
+    //if (n < 6)
+    //draw_grid(scale);
 
     glColor3f(1.0, 0.0, 0.0);
     glBegin(GL_LINES);
@@ -263,7 +321,8 @@ void display()
 
 int main (int argc, char* argv[])
 {
-
+    //     int scale, cols;
+    // vector<vector<int> > components = approximation(scale, cols);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE);
     glutInitWindowSize(WIDTH, HEIGHT);
